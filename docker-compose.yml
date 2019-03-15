@@ -1,0 +1,44 @@
+version: '3'
+
+services:
+  db:
+    image: mvertes/alpine-mongo
+    volumes:
+      - ./database/db_storage:/data/db
+    ports:
+      - "27017:27017"
+
+  app1:
+    depends_on:
+      - db
+    build:
+      dockerfile: Dockerfile
+      context: .
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      MONGO_HOST: db
+
+  app2:
+    depends_on:
+      - db
+    build:
+      dockerfile: Dockerfile.1
+      context: .
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      MONGO_HOST: db
+
+  load_balancer:
+    depends_on:
+      - app1
+      - app2
+    build:
+      context: load_balancer
+    expose:
+      - "8080"
+    ports:
+      - "8080:8080"
