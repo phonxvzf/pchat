@@ -12,7 +12,7 @@ services:
     depends_on:
       - db
     build:
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.app1
       context: .
     ports:
       - "3000:3000"
@@ -24,7 +24,7 @@ services:
     depends_on:
       - db
     build:
-      dockerfile: Dockerfile.1
+      dockerfile: Dockerfile.app2
       context: .
     ports:
       - "3001:3001"
