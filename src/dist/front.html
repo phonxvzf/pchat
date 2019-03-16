@@ -82,7 +82,7 @@
                 //cname = <<<Get username from Database using CID>>;
                 //document.getElementById("cnameMain").innerHTML = "Name: " + cname;
 
-                //And get group list from backend as well. This is only a demo.
+                //And "GET" group list from backend as well. This is only a demo.
                 grouplist = [{ gid: "123", gname: "abc" }, { gid: "456", gname: "def" }];
                 toMainPage();
             }
@@ -137,7 +137,13 @@
         function LeaveGroup(btn) {
             var row = btn.parentNode.parentNode;
             row.parentNode.removeChild(row);
-            document.getElementById("test").innerHTML = "Leaving Group " + btn.value;
+            for (i = 0; i < grouplist.length; i++) {
+                if (grouplist[i]["gid"] === btn.value) {
+                    var removed = grouplist.splice(i, 1);
+                    document.getElementById("test").innerHTML = "Leaving Group " + removed[0]["gname"];
+                    break;
+                }
+            }
         }
         function ViewGroup(btn) {
             document.getElementById("test").innerHTML = "Go to Group " + btn.value;
