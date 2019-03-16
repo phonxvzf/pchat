@@ -6,13 +6,27 @@
     <meta charset="UTF-8">
     <title>pchat</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script> 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.slim.js"></script> 
   </head>
   <body>
-    <h1>Welcome to pchat!</h1>
+    <h1>Chat example</h1>
+    <form id="chatForm">
+      <input type="text" id="chatMessage" placeholder="message"></input>
+      <input type="submit" value="send"></input>
+    </form>
   </body>
   <script>
     window.onload = () => {
-      // TODO: frontend code
+      const socket = io();
+      $('#chatForm').submit((e) => {
+        e.preventDefault();
+        const msg = $('#chatMessage').val();
+        if (msg.length > 0) {
+          socket.emit('chat', { text: msg, senderId: 'testId', senderName: 'phon' });
+          $('#chatMessage').val('');
+        }
+        return false;
+      });
     };
   </script>
 <html>
