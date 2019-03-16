@@ -54,7 +54,7 @@
             <tr>
                 <td style="text-align:right">GroupID:</td>
                 <td><input id="GIDBox" type="text"></td>
-                <td style="text-align:left"><button onclick="JoinGroup()">Join</button></td>
+                <td style="text-align:left;"><button onclick="JoinGroup()">Join</button></td>
             </tr>
             <tr>
                 <td>Group Name:</td>
@@ -110,12 +110,12 @@
         function JoinGroup() {
             var gid = document.getElementById("CIDBox").value;
             var gname = "-";//Search Group Name from database.
-            AddGroup(gid,gname);
+            AddGroup(gid, gname);
         }
         function CreteGroup() {
             var gname = document.getElementById("GNameBox").value;
             var gid = "-";//Generate new group ID from backend.
-            AddGroup(gid,gname);
+            AddGroup(gid, gname);
         }
         function AddGroup(gid, gname) {
             var table = document.getElementById("myTable");
@@ -127,8 +127,12 @@
             var cell4 = row.insertCell(3);
             cell1.innerHTML = x + ".";
             cell2.innerHTML = gid;
-            cell3.innerHTML = gname;
-            cell4.innerHTML = "<button>Leave</button>";
+            cell3.innerHTML = "<button style='background:none;border:none;color:blue'>"+gname+"</button>";
+            cell4.innerHTML = "<button onclick='LeaveGroup(this)'>Leave</button>";
+        }
+        function LeaveGroup(btn) {
+            var row = btn.parentNode.parentNode;
+            row.parentNode.removeChild(row);
         }
         //End of Main Page Script//
 
