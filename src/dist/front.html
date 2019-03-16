@@ -35,13 +35,33 @@
         <p id="cidMain">CID:</p>
         <p><u>My Group</u></p>
 
+        <table id="myTable">
+            <col width="30">
+            <col width="150">
+            <col width="500">
+            <col width="100">
+            <tr>
+                <td>No.</td>
+                <td>GID</td>
+                <td>Group name</td>
+                <td>Option</td>
+            </tr>
+        </table>
+
         <p><u>Join/Create new Group</u></p>
 
-        GroupID: <input id="GIDBox" type="text">
-        <button onclick="JoinGroup()">Join</button><br>
-
-        Group Name: <input id="GNameBox" type="text">
-        <button onclick="CreteGroup()">Create</button>
+        <table>
+            <tr>
+                <td style="text-align:right">GroupID:</td>
+                <td><input id="GIDBox" type="text"></td>
+                <td style="text-align:left"><button onclick="JoinGroup()">Join</button></td>
+            </tr>
+            <tr>
+                <td>Group Name:</td>
+                <td><input id="GNameBox" type="text"></td>
+                <td><button onclick="CreteGroup()">Create</button></td>
+            </tr>
+        </table>
     </div>
 
     <script>
@@ -58,7 +78,7 @@
             }
             else {
                 document.getElementById("cidMain").innerHTML = "CID: " + cid;
-                
+
                 //cname = <<<Get username from Database using CID>>;
                 //document.getElementById("cnameMain").innerHTML = "Name: " + cname;
                 toMainPage();
@@ -89,9 +109,26 @@
         }
         function JoinGroup() {
             var gid = document.getElementById("CIDBox").value;
+            var gname = "-";//Search Group Name from database.
+            AddGroup(gid,gname);
         }
         function CreteGroup() {
             var gname = document.getElementById("GNameBox").value;
+            var gid = "-";//Generate new group ID from backend.
+            AddGroup(gid,gname);
+        }
+        function AddGroup(gid, gname) {
+            var table = document.getElementById("myTable");
+            var x = table.rows.length;
+            var row = table.insertRow(x);
+            var cell1 = row.insertCell(0);
+            var cell2 = row.insertCell(1);
+            var cell3 = row.insertCell(2);
+            var cell4 = row.insertCell(3);
+            cell1.innerHTML = x + ".";
+            cell2.innerHTML = gid;
+            cell3.innerHTML = gname;
+            cell4.innerHTML = "<button>Leave</button>";
         }
         //End of Main Page Script//
 
