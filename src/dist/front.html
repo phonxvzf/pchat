@@ -93,13 +93,13 @@
 
         //Home Page Script//
         function Login() {
-            cid = document.getElementById("CIDBox").value;
-            password = document.getElementById("PWLoginBox").value;
+            cid = $('#CIDBox')[0].value;
+            password = $('#PWLoginBox')[0].value;
             if ((cid == "")||(password == "")) {
-                document.getElementById("CIDWarning").innerHTML = "Look like you doesn't enter ID or password.";
+                $('#CIDWarning')[0].innerHTML = "Look like you doesn't enter ID or password.";
             }
             else {
-                document.getElementById("cidMain").innerHTML = "CID: " + cid;
+                $("#cidMain")[0].innerHTML = "CID: " + cid;
                 //cname = <<<Get username from Database using CID>>;
                 //document.getElementById("cnameMain").innerHTML = "Name: " + cname;
 
@@ -109,13 +109,13 @@
             }
         }
         function Register() {
-            cname = document.getElementById("CNameBox").value;
-            password = document.getElementById("PWLoginBox").value;
+            cname = $('#CNameBox')[0].value;
+            password = $('#PWRegBox')[0].value;
             if ((cname == "")) {
-                document.getElementById("CNameWarning").innerHTML = "Look like you doesn't enter name or password.";
+                $('#CIDWarning')[0].innerHTML = "Look like you doesn't enter name or password.";
             }
             else {
-                document.getElementById("cnameMain").innerHTML = "Name: " + cname;
+                $("#cnameMain")[0].innerHTML = "Name: " + cname;
 
                 //cid = <<<Generate cid for new user>>>;
                 //document.getElementById("cidMain").innerHTML = "CID: " + cid;
@@ -123,7 +123,6 @@
             }
         }
         function Forget() {
-            //document.getElementById("CIDWarning").innerHTML = "Just create new ID. We will delete your account later.";
             $('#CIDWarning')[0].innerHTML = "Just create new ID. We will delete your account later.";
         }
         //End of Home Page Script//
@@ -132,28 +131,28 @@
         function Logout() {
             cid = "";
             cname = "";
-            document.getElementById("cidMain").innerHTML = "CID: " + cid;
-            document.getElementById("cnameMain").innerHTML = "Name: " + cname;
+            $("#cidMain")[0].innerHTML = "CID: " + cid;
+            $("#cnameMain")[0].innerHTML = "Name: " + cname;
             toHomePage();
         }
         function JoinGroup() {
-            var gid1 = document.getElementById("GIDBox").value;
+            var gid1 = $("#GIDBox")[0].value;
             var gname1 = "-";//Search Group Name from database.
-            document.getElementById("GIDBox").value = "";
+           $("#GIDBox")[0].value = "";
             var newgroup = { gid: "" + gid1, gname: "" + gname1 };
             grouplist.push(newgroup);
             AddGroup(gid1, gname1);
         }
         function CreteGroup() {
-            var gname1 = document.getElementById("GNameBox").value;
+            var gname1 = $("#GNameBox")[0].value;
             var gid1 = "-";//Generate new group ID from backend.
-            document.getElementById("GNameBox").value = "";
+            $("#GNameBox")[0].value = "";
             var newgroup = { gid: "" + gid1, gname: "" + gname1 };
             grouplist.push(newgroup);
             AddGroup(gid1, gname1);
         }
         function AddGroup(newgid, newgname) {
-            var table = document.getElementById("myTable");
+            var table = $("#myTable")[0];
             var x = table.rows.length;
             var row = table.insertRow(x);
             var cell1 = row.insertCell(0);
@@ -170,13 +169,13 @@
             for (i = 0; i < grouplist.length; i++) {
                 if (grouplist[i]["gid"] === btn.value) {
                     var removed = grouplist.splice(i, 1);
-                    document.getElementById("test").innerHTML = "Leaving Group " + removed[0]["gname"];
+                    $("#test")[0].innerHTML = "Leaving Group " + removed[0]["gname"];
                     break;
                 }
             }
         }
         function ViewGroup(btn) {
-            document.getElementById("test").innerHTML = "Go to Group " + btn.value;
+            $("#test")[0].innerHTML = "Go to Group " + btn.value;
         }
         //End of Main Page Script//
 
@@ -185,7 +184,7 @@
 
         //Page Manage Script//
         function toMainPage() {
-            var table = document.getElementById("myTable");
+            var table = $("#myTable")[0];
             while (table.rows.length > 1) {
                 table.deleteRow(1);
             }
@@ -197,10 +196,10 @@
             group.style.display = "none";
         }
         function toHomePage() {
-            document.getElementById("CIDBox").value = "";
-            document.getElementById("CNameBox").value = "";
-            document.getElementById("CNameWarning").innerHTML = "";
-            document.getElementById("CIDWarning").innerHTML = "";
+            $("#CIDBox")[0].value = "";
+            $("#CNameBox")[0].value = "";
+            $("#CNameWarning")[0].innerHTML = "";
+            $("#CIDWarning")[0].innerHTML = "";
             main.style.display = "none";
             home.style.display = "block";
             group.style.display = "none";
