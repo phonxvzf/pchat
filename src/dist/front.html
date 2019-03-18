@@ -2,6 +2,7 @@
 <html>
 <header>
     <title>pchat</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 </header>
 
 <body>
@@ -17,12 +18,31 @@
         <h1 style="color:darkslateblue">Welcome to pchat</h1>
 
         <p>For existing user, please log in.</p>
-        ClientID: <input id="CIDBox" type="text">
-        <button onclick="Login()">Login</button>
+        <table align="center">
+            <tr>
+                <td>ClientID:</td>
+                <td><input id="CIDBox" type="text"></td>
+            </tr>
+            <tr>
+                <td>Password:</td>
+                <td><input id="PWLoginBox" type="text"></td>
+            </tr>
+        </table>
+        <button onclick="Login()">Login</button><br>
+        <button onclick="Forget()">Forget Password</button>
         <p id="CIDWarning" style="color:red"></p>
 
         <p>For new user, please create new account.</p>
-        Your name: <input id="CNameBox" type="text">
+        <table align="center">
+            <tr>
+                <td>Your name:</td>
+                <td><input id="CNameBox" type="text"></td>
+            </tr>
+            <tr>
+                <td>Password:</td>
+                <td><input id="PWRegBox" type="text"></td>
+            </tr>
+        </table>
         <button onclick="Register()">Register</button>
         <p id="CNameWarning" style="color:red"></p>
 
@@ -65,7 +85,7 @@
     </div>
 
     <script>
-        var cid, cname;
+        var cid, cname, password;
         var main = document.getElementById("main");
         var home = document.getElementById("home");
         var group = document.getElementById("group");
@@ -74,8 +94,9 @@
         //Home Page Script//
         function Login() {
             cid = document.getElementById("CIDBox").value;
-            if ((cid == "")) {
-                document.getElementById("CIDWarning").innerHTML = "Please input a CID.";
+            password = document.getElementById("PWLoginBox").value;
+            if ((cid == "")||(password == "")) {
+                document.getElementById("CIDWarning").innerHTML = "Look like you doesn't enter ID or password.";
             }
             else {
                 document.getElementById("cidMain").innerHTML = "CID: " + cid;
@@ -83,13 +104,15 @@
                 //document.getElementById("cnameMain").innerHTML = "Name: " + cname;
 
                 //And "GET" group list from backend as well. This is only a demo.
+                //grouplist = ...
                 toMainPage();
             }
         }
         function Register() {
             cname = document.getElementById("CNameBox").value;
+            password = document.getElementById("PWLoginBox").value;
             if ((cname == "")) {
-                document.getElementById("CNameWarning").innerHTML = "Please input a name.";
+                document.getElementById("CNameWarning").innerHTML = "Look like you doesn't enter name or password.";
             }
             else {
                 document.getElementById("cnameMain").innerHTML = "Name: " + cname;
@@ -98,6 +121,10 @@
                 //document.getElementById("cidMain").innerHTML = "CID: " + cid;
                 toMainPage();
             }
+        }
+        function Forget() {
+            //document.getElementById("CIDWarning").innerHTML = "Just create new ID. We will delete your account later.";
+            $('#CIDWarning')[0].innerHTML = "Just create new ID. We will delete your account later.";
         }
         //End of Home Page Script//
 
