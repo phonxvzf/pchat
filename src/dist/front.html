@@ -20,39 +20,43 @@
         <p>For existing user, please log in.</p>
         <table align="center">
             <tr>
-                <td>ClientID:</td>
-                <td><input id="CIDBox" type="text"></td>
+                <td>User name:</td>
+                <td><input id="UNLoginBox" type="text"></td>
             </tr>
             <tr>
                 <td>Password:</td>
-                <td><input id="PWLoginBox" type="text"></td>
+                <td><input id="PWLoginBox" type="password"></td>
             </tr>
         </table>
         <button onclick="Login()">Login</button><br>
         <button onclick="Forget()">Forget Password</button>
-        <p id="CIDWarning" style="color:red"></p>
+        <p id="LoginWarning" style="color:red"></p>
 
         <p>For new user, please create new account.</p>
         <table align="center">
             <tr>
-                <td>Your name:</td>
-                <td><input id="CNameBox" type="text"></td>
+                <td>User name:</td>
+                <td><input id="UNRegBox" type="text"></td>
             </tr>
             <tr>
                 <td>Password:</td>
-                <td><input id="PWRegBox" type="text"></td>
+                <td><input id="PWRegBox" type="password"></td>
+            </tr>
+            <tr>
+                <td>Display name:</td>
+                <td><input id="DNRegBox" type="text"></td>
             </tr>
         </table>
         <button onclick="Register()">Register</button>
-        <p id="CNameWarning" style="color:red"></p>
+        <p id="RegWarning" style="color:red"></p>
 
     </div>
 
     <!--Main Page-->
     <div id="main" style="display: none; margin: 20px">
-        <p id="cnameMain">Name:</p>
         <button onclick="Logout()" style="float :right">Logout</button>
-        <p id="cidMain">CID:</p>
+        <p id="UNMain">User name:</p>
+        <p id="DNMain">Display name:</p>
         <p><u>My Group</u></p>
 
         <table id="myTable">
@@ -85,7 +89,7 @@
     </div>
 
     <script>
-        var cid, cname, password;
+        var username, password, displayname;
         var main = document.getElementById("main");
         var home = document.getElementById("home");
         var group = document.getElementById("group");
@@ -93,15 +97,21 @@
 
         //Home Page Script//
         function Login() {
-            cid = $('#CIDBox')[0].value;
+            username = $('#UNLoginBox')[0].value;
             password = $('#PWLoginBox')[0].value;
-            if ((cid == "")||(password == "")) {
-                $('#CIDWarning')[0].innerHTML = "Look like you doesn't enter ID or password.";
+            displayname = "-";
+            if ((username == "") || (password == "")) {
+                $('#LoginWarning')[0].innerHTML = "Look like you doesn't enter username or password.";
             }
             else {
-                $("#cidMain")[0].innerHTML = "CID: " + cid;
                 //cname = <<<Get username from Database using CID>>;
                 //document.getElementById("cnameMain").innerHTML = "Name: " + cname;
+                $.post(
+                    window.location.origin + '/login',
+                    { login: 'username', password: 'password' }
+                ).done((response) => {
+
+                });
 
                 //And "GET" group list from backend as well. This is only a demo.
                 //grouplist = ...
@@ -109,36 +119,36 @@
             }
         }
         function Register() {
-            cname = $('#CNameBox')[0].value;
+            username = $('#UNRegBox')[0].value;
             password = $('#PWRegBox')[0].value;
-            if ((cname == "")) {
-                $('#CIDWarning')[0].innerHTML = "Look like you doesn't enter name or password.";
+            displayname = $("#DNRegBox")[0].value;
+            if ((username == "") || (password == "")) {
+                $('#RegWarning')[0].innerHTML = "Look like you doesn't enter username or password.";
             }
             else {
-                $("#cnameMain")[0].innerHTML = "Name: " + cname;
-
                 //cid = <<<Generate cid for new user>>>;
                 //document.getElementById("cidMain").innerHTML = "CID: " + cid;
                 toMainPage();
             }
         }
         function Forget() {
-            $('#CIDWarning')[0].innerHTML = "Just create new ID. We will delete your account later.";
+            $('#LoginWarning')[0].innerHTML = "Just create new ID. We will delete your account later.";
         }
         //End of Home Page Script//
 
         //Main Page Script//    
         function Logout() {
-            cid = "";
-            cname = "";
-            $("#cidMain")[0].innerHTML = "CID: " + cid;
-            $("#cnameMain")[0].innerHTML = "Name: " + cname;
+            $("#PWLoginBox")[0].value = "";
+            $("#PWRegBox")[0].value = "";
+            $("#DNMain")[0].value = "";
+            $("#UNMain")[0].innerHTML = "User name:";
+            $("#DNMain")[0].innerHTML = "Display name:";
             toHomePage();
         }
         function JoinGroup() {
             var gid1 = $("#GIDBox")[0].value;
             var gname1 = "-";//Search Group Name from database.
-           $("#GIDBox")[0].value = "";
+            $("#GIDBox")[0].value = "";
             var newgroup = { gid: "" + gid1, gname: "" + gname1 };
             grouplist.push(newgroup);
             AddGroup(gid1, gname1);
@@ -191,15 +201,17 @@
             for (i = 0; i < grouplist.length; i++) {
                 AddGroup(grouplist[i]["gid"], grouplist[i]["gname"]);
             }
+            $("#UNMain")[0].innerHTML = "User name: " + username;
+            $("#DNMain")[0].innerHTML = "Display name: " + displayname;
             main.style.display = "block";
             home.style.display = "none";
             group.style.display = "none";
         }
         function toHomePage() {
-            $("#CIDBox")[0].value = "";
-            $("#CNameBox")[0].value = "";
-            $("#CNameWarning")[0].innerHTML = "";
-            $("#CIDWarning")[0].innerHTML = "";
+            $("#UNLoginBox")[0].value = "";
+            $("#UNRegBox")[0].value = "";
+            $("#LoginWarning")[0].innerHTML = "";
+            $("#RegWarning")[0].innerHTML = "";
             main.style.display = "none";
             home.style.display = "block";
             group.style.display = "none";
