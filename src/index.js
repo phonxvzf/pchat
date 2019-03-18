@@ -80,7 +80,6 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
                   login: req.body['login'],
                   name: req.body['name'],
                   password: encryptedPassword,
-                  groups: [],
                 };
                 mongodb.collection('user')
                   .insertOne(
@@ -96,7 +95,6 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
                           userId: result.insertedId,
                           login: user.login,
                           name: user.name,
-                          groups: user.groups,
                         });
                       }
                     });
@@ -144,7 +142,7 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
     } else {
       const group = {
         name: groupName,
-        members: [new mongo.ObjectID(userId)],
+        members: [{ userId: new mongo.ObjectID(userId), name: req.userData.name }],
         messages: [],
       };
       mongodb.collection('group').insertOne(group, (err, result) => {
@@ -153,24 +151,11 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
           res.status(500);
           res.send('Database error');
         } else {
-          mongodb.collection('user')
-            .updateOne(
-              { _id: new mongo.ObjectID(userId) },
-              { '$push': { groups: new mongo.ObjectID(result.insertedId) } },
-              (err, _) => {
-                if (err) {
-                  console.log(err);
-                  res.status(500);
-                  res.send('Database error');
-                } else {
-                  res.status(201);
-                  res.send({ groupId: result.insertedId, name: groupName });
-                }
-              }
-            );
+          res.status(201);
+          res.send({ groupId: result.insertedId });
         }
-        });
-      }
+      });
+    }
   });
 
   app.post('/api/join', requireAuth, (req, res) => {
@@ -181,13 +166,12 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
     } else {
       mongodb.collection('group').updateOne(
         { _id: new mongo.ObjectID(groupId) },
-        { '$addToSet': { members: new mongo.ObjectID(userId) }},
+        { '$addToSet': { members: { userId: new mongo.ObjectID(userId), name: req.userData.name } } },
         (err, result) => {
           if (err) {
             res.status(500);
             res.send('Database error');
           } else {
-            console.log(result);
             if (result.matchedCount === 0) {
               res.status(404);
               res.send(`Group id ${groupId} does not exist.`);
@@ -214,14 +198,52 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
     }
   });
 
-  app.post('/api/leave', (req, res) => {
+  app.post('/api/leave', requireAuth, (req, res) => {
     const { userId, groupId } = req.body;
-    // TODO
+    if (userId == null || groupId == null) {
+      res.status(400);
+      res.send('Specify { userId, groupId }');
+    } else {
+      mongodb.collection('group').updateOne(
+        { _id: new mongo.ObjectID(groupId) },
+        { '$pull': { members: { userId: new mongo.ObjectID(userId) } } },
+        (err, result) => {
+          if (err) {
+            console.log(err);
+            res.status(500);
+            res.send('Database error');
+          } else {
+            if (result.modifiedCount == null || result.modifiedCount === 0) {
+              res.status(400);
+              res.send('Either the user is not in the group or the group does not exist.');
+            } else {
+              res.send({ groupId });
+            }
+          }
+        }
+      )
+    }
   });
 
-  app.get('/api/group', (req, res) => {
+  app.post('/api/memberOf', requireAuth, (req, res) => {
     const { userId } = req.body;
-    // TODO
+    mongodb.collection('group').aggregate(
+      [
+        { '$match': { members: { '$elemMatch': { userId: { '$eq': new mongo.ObjectID(userId) } } } } },
+        { '$project': { 'groupId': '$_id', 'name': '$name', 'members': '$members.name' } },
+        { '$project': { '_id': 0 } }
+      ]
+    ).toArray(
+      (err, result) => {
+        if (err) {
+          console.log(err);
+          res.status(500);
+          res.send('Database error');
+        } else {
+          res.send(result);
+        }
+      }
+    );
   });
 
   app.get('/*', (_, res) => {
