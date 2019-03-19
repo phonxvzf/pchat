@@ -80,6 +80,7 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
                   login: req.body['login'],
                   name: req.body['name'],
                   password: encryptedPassword,
+                  lastRead: [],
                 };
                 mongodb.collection('user')
                   .insertOne(
@@ -121,14 +122,19 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
           res.status(500);
           res.send('Database error');
         } else {
-          bcrypt.compare(password, result.password, (_, match) => {
-            if (match) {
-              res.send({ userId: result._id, name: result.name, groups: result.groups });
-            } else {
-              res.status(401);
-              res.send('Unauthorized');
-            }
-          });
+          if (result == null) {
+            res.status(404);
+            res.send('No such login');
+          } else {
+            bcrypt.compare(password, result.password, (_, match) => {
+              if (match) {
+                res.send({ userId: result._id, name: result.name, groups: result.groups });
+              } else {
+                res.status(401);
+                res.send('Unauthorized');
+              }
+            });
+          }
         }
       });
     }
@@ -151,8 +157,20 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
           res.status(500);
           res.send('Database error');
         } else {
-          res.status(201);
-          res.send({ groupId: result.insertedId });
+          mongodb.collection('user').updateOne(
+            { _id: new mongo.ObjectID(userId) },
+            { '$push': { lastRead: { groupId: new mongo.ObjectID(result.insertedId), messageId: null } } },
+            (err, _) => {
+              if (err) {
+                console.log(err);
+                res.status(500);
+                res.send('Database error');
+              } else {
+                res.status(201);
+                res.send({ groupId: result.insertedId });
+              }
+            }
+          )
         }
       });
     }
@@ -181,16 +199,17 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
             } else {
               mongodb.collection('user').updateOne(
                 { _id: new mongo.ObjectID(userId) },
-                { '$addToSet': { groups: new mongo.ObjectID(groupId) } },
+                { '$addToSet': { lastRead: { groupId: new mongo.ObjectID(groupId), messageId: null } } },
                 (err, _) => {
                   if (err) {
+                    console.log(err);
                     res.status(500);
                     res.send('Database error');
                   } else {
                     res.send({ groupId });
                   }
                 }
-              );
+              )
             }
           }
         }
@@ -217,7 +236,24 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
               res.status(400);
               res.send('Either the user is not in the group or the group does not exist.');
             } else {
-              res.send({ groupId });
+              mongodb.collection('user').updateOne(
+                {
+                  _id: new mongo.ObjectID(userId),
+                  lastRead: {
+                    '$elemMatch': { groupId: { '$eq': new mongo.ObjectID(groupId) } }
+                  },
+                },
+                { '$pull': { lastRead: { groupId: new mongo.ObjectID(groupId) } } },
+                (err, _) => {
+                  if (err) {
+                    console.log(err);
+                    res.status(500);
+                    res.send('Database error');
+                  } else {
+                    res.send({ groupId });
+                  }
+                }
+              )
             }
           }
         }
@@ -249,14 +285,135 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
   app.get('/*', (_, res) => {
     res.status(404);
     res.send('Not found');
-  })
+  });
 
-  // socket.io event handlers go here
+  app.post('/*', (_, res) => {
+    res.status(404);
+    res.send('Not found');
+  });
+
   sio.on('connection', (socket) => {
-    socket.on('chat', (msg) => {
-      // TODO
-      const { senderId, senderName, text } = msg;
-      console.log(`${senderName}[${senderId}]: ${text}`);
+    socket.on('join', (room) => {
+      if (room != '' && room.length === 24) {
+        mongodb.collection('group').findOne(
+          { _id: new mongo.ObjectID(room) },
+          (err, result) => {
+            if (err) {
+              console.log(err);
+              socket.emit('errorMessage', 'Database error');
+            } else {
+              if (result == null) {
+                socket.emit('errorMessage', `Group id ${room} does not exist.`);
+              } else {
+                socket.join(room, () => {
+                  socket.emit('joinACK', room);
+                });
+              }
+            }
+          }
+        )
+      }
+    });
+
+    socket.on('getUnread', (msg) => {
+      const { userId, groupId } = msg;
+      if (userId == null || groupId == null) {
+        socket.emit('errorMessage', 'getUnread: provide { userId, groupId }');
+      } else {
+        mongodb.collection('user').findOne(
+          { _id: new mongo.ObjectID(userId) },
+          (err, result) => {
+            if (err) {
+              console.log(err);
+              socket.emit('errorMessage', 'Database error');
+            } else {
+              if (result == null) {
+                socket.emit('errorMessage', `User is not in group ${groupId}`);
+              } else {
+                let lastReadMessageId = null;
+                for (let i = 0; i < result.lastRead.length; ++i) {
+                  if (result.lastRead[i].groupId.toString() === groupId) {
+                    lastReadMessageId = result.lastRead[i].messageId;
+                    break;
+                  }
+                }
+                mongodb.collection('group').findOne(
+                  { _id: new mongo.ObjectID(groupId) },
+                  (err, result) => {
+                    if (err) {
+                      console.log(err);
+                      socket.emit('errorMessage', 'Database error');
+                    } else {
+                      const messages = result.messages;
+                      const unread = [];
+                      let i = 0;
+                      if (lastReadMessageId != null) {
+                        while (i < messages.length && (messages[i].messageId != lastReadMessageId)) ++i;
+                        ++i;
+                      }
+                      for (; i < messages.length; ++i) {
+                        unread.push(messages[i]);
+                      }
+                      console.log(unread);
+                      socket.emit('unreadMessage', { groupId, unread });
+                    }
+                  }
+                );
+              }
+            }
+          }
+        )
+      }
+    });
+
+    socket.on('unreadMessageACK', (msg) => {
+      const { userId, groupId, messageId } = msg;
+      mongodb.collection('user').updateOne(
+        {
+          _id: new mongo.ObjectID(userId),
+          lastRead: {
+            '$elemMatch': {
+              groupId: {
+                '$eq': new mongo.ObjectID(groupId),
+              }
+            }
+          },
+        },
+        { '$set': { 'lastRead.$.messageId': messageId } },
+        (err, _) => {
+          if (err) {
+            console.log(err);
+            socket.emit('errorMessage', 'Database error');
+          }
+        }
+      );
+    });
+
+    socket.on('message', (msg) => {
+      const { messageId, groupId, senderName, text } = msg;
+      if (messageId == null || groupId == null || senderName == null || text == null) {
+        socket.emit('errorMessage', 'Provide { messageId, groupId, senderName, text }');
+      } else {
+        const message = {
+          messageId,
+          groupId,
+          senderName,
+          text,
+          time: new Date(),
+        };
+        mongodb.collection('group').updateOne(
+          { _id: new mongo.ObjectID(groupId) },
+          { '$push': { messages: message } },
+          (err, _) => {
+            if (err) {
+              console.log(err);
+              socket.emit('errorMessage', 'Database error');
+            } else {
+              sio.to(groupId).emit('newMessage', { groupId });
+            }
+          }
+        )
+      }
     });
   });
 

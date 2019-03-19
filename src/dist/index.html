@@ -1,5 +1,23 @@
 <!DOCTYPE html>
 <style>
+#chatBoard {
+  width: 80%;
+  height: 400px;
+  border-style: solid;
+  border-width: medium;
+  overflow: scroll;
+}
+.msgOwn {
+  background: #f4ffba;
+  color: #000;
+}
+.msgOther {
+  background: #fff;
+  color: #000;
+}
+.longInput {
+  width: 40%;
+}
 </style>
 <html>
   <head>
@@ -9,24 +27,100 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.slim.js"></script> 
   </head>
   <body>
-    <h1>Chat example</h1>
-    <form id="chatForm">
-      <input type="text" id="chatMessage" placeholder="message"></input>
-      <input type="submit" value="send"></input>
-    </form>
+    <h1>Chat page example</h1>
+    Current group: <span id="currentGroup">-</span><br>
+    <div>
+      <form id="joinForm">
+        <input type="text" class="longInput" id="userId" placeholder="userId" autocomplete="off"></input><br>
+        <input type="text" class="longInput" id="groupId" placeholder="groupId" autocomplete="off"></input><br>
+        <input type="submit" value="join"></input>
+      </form>
+    </div>
+    <hr>
+    <div id="chatBoard"></div>
+    <div>
+      <form id="chatForm">
+        <input type="text" class="longInput" id="chatMessage" placeholder="message" autocomplete="off"></input>
+        <input type="submit" value="send"></input>
+      </form>
+    </div>
+    <br>
+    Status message: <span id="statusMessage">none</span><br>
+    Error message: <span id="errorMessage">none</span>
   </body>
   <script>
     window.onload = () => {
-      const socket = io();
-      $('#chatForm').submit((e) => {
-        e.preventDefault();
-        const msg = $('#chatMessage').val();
-        if (msg.length > 0) {
-          socket.emit('chat', { text: msg, senderId: 'testId', senderName: 'phon' });
-          $('#chatMessage').val('');
-        }
-        return false;
+      const sio = io();
+      // on form submit
+      let lastMessageId = '';
+      sio.on('connect', () => {
+        $('#joinForm').submit((e) => {
+          e.preventDefault();
+          const userId = $('#userId').val();
+          const groupId = $('#groupId').val();
+          if (userId == '' || groupId == '') return false;
+          sio.emit('join', groupId);
+          return false;
+        });
+
+        sio.on('errorMessage', (msg) => {
+          $('#errorMessage').text(msg);
+        });
+
+        sio.on('joinACK', (msg) => {
+          $('#statusMessage').text('joinACK: ' + msg);
+          $('#currentGroup').text(msg);
+          $('#chatForm').submit((e) => {
+            if ($('#userId').val() == '' || $('#groupId').val() == '') return false;
+            e.preventDefault();
+            const msg = $('#chatMessage').val();
+            const id = window.crypto
+              .getRandomValues(new Uint32Array(1))[0]
+              .toString(16);
+            lastMessageId = id;
+            if (msg.length > 0) {
+              sio.emit('message', {
+                text: msg,
+                messageId: id,
+                groupId: $('#groupId').val(),
+                senderName: 'phon'
+              });
+              $('#chatMessage').val('');
+            }
+            return false;
+          });
+        });
+
+        sio.on('newMessage', (msg) => {
+          $('#statusMessage').text('newMessage: ' + msg);
+          sio.emit('getUnread', {
+            userId: $('#userId').val(),
+            groupId: $('#groupId').val(),
+          })
+        });
+
+        sio.on('unreadMessage', (msg) => {
+          let latestMessageId = null;
+          $('#statusMessage').text('unreadMessage: ' + msg);
+          for (let i = 0; i < msg.unread.length; ++i) {
+            const m = msg.unread[i];
+            const cl = (m.messageId === lastMessageId) ? 'msgOwn' : 'msgOther';
+            const datetime = new Date(m.time);
+            const dateString = datetime.toDateString() + ' ' + datetime.toTimeString().substr(0,8);
+            $('#chatBoard').append($('<div/>')
+              .attr('class', cl)
+              .text(dateString + ' [' + m.senderName + ']: ' + m.text));
+            latestMessageId = m.messageId;
+          }
+          sio.emit('unreadMessageACK', {
+            userId: $('#userId').val(),
+            groupId: $('#groupId').val(),
+            messageId: latestMessageId,
+          });
+          var chatBoard = document.getElementById("chatBoard");
+          chatBoard.scrollTop = chatBoard.scrollHeight;
+        });
       });
     };
   </script>
-<html>
+</html>
