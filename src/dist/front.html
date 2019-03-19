@@ -108,10 +108,9 @@
                 //document.getElementById("cnameMain").innerHTML = "Name: " + cname;
                 $.post(
                     window.location.origin + '/login',
-                    { login: 'username', password: 'password' }
-                ).done((response) => {
-
-                });
+                    { login: 'username', password: 'password' },
+                    function(disname){displayname = disname;}
+                );
 
                 //And "GET" group list from backend as well. This is only a demo.
                 //grouplist = ...
@@ -122,12 +121,14 @@
             username = $('#UNRegBox')[0].value;
             password = $('#PWRegBox')[0].value;
             displayname = $("#DNRegBox")[0].value;
-            if ((username == "") || (password == "")) {
+            if ((username == "") || (password == "") || (displayname == "")) {
                 $('#RegWarning')[0].innerHTML = "Look like you doesn't enter username or password.";
             }
             else {
-                //cid = <<<Generate cid for new user>>>;
-                //document.getElementById("cidMain").innerHTML = "CID: " + cid;
+                $.post(
+                    window.location.origin + '/register',
+                    { login: 'username', name: 'displayname', password: 'password' },
+                );
                 toMainPage();
             }
         }
@@ -140,6 +141,7 @@
         function Logout() {
             $("#PWLoginBox")[0].value = "";
             $("#PWRegBox")[0].value = "";
+            $("#DNRegBox")[0].value = "";
             $("#DNMain")[0].value = "";
             $("#UNMain")[0].innerHTML = "User name:";
             $("#DNMain")[0].innerHTML = "Display name:";
