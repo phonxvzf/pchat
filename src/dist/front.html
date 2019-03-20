@@ -99,12 +99,8 @@
         <table style="bottom: 10px; position: absolute;">
             <tr>
                 <td>
-                    <div style="width: 770px; height: 200px; position: relative; overflow: auto;">
-                        <table id="chatroom" border="1" style="bottom: 0px; position:absolute;">
-                            <col width="170">
-                            <col width="100">
-                            <col width="500">
-                        </table>
+                    <div id="chatroom" style="width: 770px; height: 200px; position: relative; overflow: auto;">
+                        
                     </div>
                 </td>
             </tr>
@@ -238,7 +234,7 @@
         //Group Page Script//
         function Send() {
             $("#test")[0].innerHTML = "Sending... ";
-            var table = $("#chatroom")[0];
+            /*var table = $("#chatroom")[0];
             var x = table.rows.length;
             var row = table.insertRow(x);
             var cell1 = row.insertCell(0);
@@ -246,7 +242,12 @@
             var cell3 = row.insertCell(2);
             cell1.innerHTML = "<p style='color:red'>" + new Date().toLocaleString() + "</p>";
             cell2.innerHTML = "<p style='color:indigo'>" + displayname + "</p>";
-            cell3.innerHTML = $("#message")[0].value;
+            cell3.innerHTML = $("#message")[0].value;*/
+            var time = new Date().toLocaleString();
+            var author = displayname;
+            var message = $("#message")[0].value;
+            var room = $("#chatroom")[0];
+            var temp = room.innerHTML;
             $("#message")[0].value = "";
         }
         function Exit() {
