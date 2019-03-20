@@ -96,7 +96,6 @@
     <div id="group" style="display:none;">
         <button onclick="Exit()" style="float :right">Exit</button>
         <p id="GID">Group id:</p>
-        <p id="GName">Group name:</p>
         <table style="background-color: royalblue">
             <tr>
                 <td>
@@ -240,6 +239,7 @@
         }
         function Exit() {
             room.innerHTML = "";
+            $("#message")[0].value = "";
             toMainPage();
         }
         //End of Group Page Script//
@@ -270,12 +270,6 @@
         }
         function toGroupPage(gid) {
             $("#GID")[0].innerHTML = "Group ID: " + gid;
-            for (i = 0; i < grouplist.length; i++) {
-                if (grouplist[i]["gid"] === gid) {
-                    $("#GName")[0].value = "Group name: " + grouplist[i]["gname"];
-                    break;
-                }
-            }
             main.style.display = "none";
             home.style.display = "none";
             group.style.display = "block";
