@@ -1,4 +1,5 @@
 const app = require('express')();
+const cors = require('cors');
 const bodyParser = require('body-parser');
 const http = require('http').Server(app);
 const sio = require('socket.io')(http);
@@ -20,6 +21,11 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
   mongodb = db.db();
 
   // HTTP paths go here
+  app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'HEAD', 'OPTIONS'],
+  }));
+
   app.use(jsonParser);
 
   app.get('/', (_, res) => {
@@ -128,7 +134,7 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
           } else {
             bcrypt.compare(password, result.password, (_, match) => {
               if (match) {
-                res.send({ userId: result._id, name: result.name, groups: result.groups });
+                res.send({ userId: result._id, name: result.name, groups: result.groups, lastRead: result.lastRead });
               } else {
                 res.status(401);
                 res.send('Unauthorized');
@@ -182,7 +188,7 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
       res.status(400);
       res.send('Specify { userId, groupId }');
     } else {
-      mongodb.collection('group').updateOne(
+      mongodb.collection('group').findOneAndUpdate(
         { _id: new mongo.ObjectID(groupId) },
         { '$addToSet': { members: { userId: new mongo.ObjectID(userId), name: req.userData.name } } },
         (err, result) => {
@@ -206,7 +212,7 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
                     res.status(500);
                     res.send('Database error');
                   } else {
-                    res.send({ groupId });
+                    res.send({ groupId, groupName: result.value.name });
                   }
                 }
               )
@@ -306,13 +312,19 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
                 socket.emit('errorMessage', `Group id ${room} does not exist.`);
               } else {
                 socket.join(room, () => {
-                  socket.emit('joinACK', room);
+                  socket.emit('joinACK', { groupId: room, groupName: result.name, messages: result.messages });
                 });
               }
             }
           }
         )
       }
+    });
+
+    socket.on('leave', (room) => {
+      socket.leave(room, () => {
+        socket.emit('leaveACK', room);
+      });
     });
 
     socket.on('getUnread', (msg) => {
@@ -354,7 +366,6 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
                       for (; i < messages.length; ++i) {
                         unread.push(messages[i]);
                       }
-                      console.log(unread);
                       socket.emit('unreadMessage', { groupId, unread });
                     }
                   }
