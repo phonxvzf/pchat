@@ -2,7 +2,8 @@
 <html>
 <header>
     <title>pchat</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 </header>
 
@@ -96,26 +97,13 @@
         <button onclick="Exit()" style="float :right">Exit</button>
         <p id="GID">Group id:</p>
         <p id="GName">Group name:</p>
-        <table style="bottom: 10px; position: absolute;">
+        <table style="background-color: royalblue">
             <tr>
                 <td>
-                    <div id="chatroom" style="width: 770px; height: 200px; position: relative; overflow: auto;">
-                        
+                    <div id="chatroom"
+                        style="width: 800px; height: 500px; position: relative; background-color: white; overflow: auto;">
+
                     </div>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <table border="1">
-                        <col width="170">
-                        <col width="100">
-                        <col width="500">
-                        <tr>
-                            <td>Time</td>
-                            <td>Author</td>
-                            <td>Message</td>
-                        </tr>
-                    </table>
                 </td>
             </tr>
             <tr>
@@ -132,6 +120,7 @@
         var main = $("#main")[0];
         var home = $("#home")[0];
         var group = $("#group")[0];
+        var room = $("#chatroom")[0];
         var grouplist = [];
 
         //Home Page Script//
@@ -233,7 +222,6 @@
 
         //Group Page Script//
         function Send() {
-            $("#test")[0].innerHTML = "Sending... ";
             /*var table = $("#chatroom")[0];
             var x = table.rows.length;
             var row = table.insertRow(x);
@@ -243,12 +231,18 @@
             cell1.innerHTML = "<p style='color:red'>" + new Date().toLocaleString() + "</p>";
             cell2.innerHTML = "<p style='color:indigo'>" + displayname + "</p>";
             cell3.innerHTML = $("#message")[0].value;*/
-            var time = new Date().toLocaleString();
-            var author = displayname;
+            var time = "<p style='color:red; display: inline;'>(" + new Date().toLocaleTimeString() + ")</p>";
+            var author = "<p style='color:indigo; display: inline;'>" + displayname + ": </p>";
             var message = $("#message")[0].value;
-            var room = $("#chatroom")[0];
-            var temp = room.innerHTML;
-            $("#message")[0].value = "";
+            if (message !== "") {
+                var temp = room.innerHTML;
+                room.innerHTML = temp + "<p>" + time + author + message + "</p>";
+                room.scrollTop = room.scrollHeight;
+                $("#message")[0].value = "";
+            }
+        }
+        function AddMessage(time, author, message) {
+
         }
         function Exit() {
             toMainPage();
