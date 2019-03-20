@@ -92,7 +92,8 @@ h2 {
         });
 
         sio.on('joinACK', (msg) => {
-          $('#currentGroup').text(msg);
+          $('#currentGroup').text(msg.groupName);
+          console.log(msg.messages);
           $('#chatForm').submit((e) => {
             if ($('#userId').val() == '' || $('#groupId').val() == '') return false;
             e.preventDefault();
