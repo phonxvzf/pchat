@@ -50,13 +50,14 @@ h2 {
     <hr>
     <div>
       <h2>Chat</h2>
-      Current group ID: <span id="currentGroup">-</span><br>
+      Current group: <span id="currentGroup">-</span><br>
       <div>
         <form id="joinForm">
           <input type="text" class="longInput" id="userId" placeholder="userId" autocomplete="off"></input><br>
           <input type="text" class="longInput" id="groupId" placeholder="groupId" autocomplete="off"></input><br>
           <input type="submit" value="join"></input>
         </form>
+        <button id="btnLeave">leave room</button>
       </div>
       <hr>
       <div id="chatBoard"></div>
@@ -71,75 +72,117 @@ h2 {
     </div>
   </body>
   <script>
+    var currentGroup = null;
+    var clientUserId = null;
+    var clientGroupId = null;
+    const myMessageIds = new Set();
+    const messageIds = {};
+
+    function appendMessages(messages) {
+      let lastMessageId = null;
+      for (let i = 0; i < messages.length; ++i) {
+        const m = messages[i];
+        if (messageIds[currentGroup].has(m.messageId)) continue;
+        const cl = myMessageIds.has(m.messageId) ? 'msgOwn' : 'msgOther';
+        const datetime = new Date(m.time);
+        const dateString = datetime.toDateString() + ' ' + datetime.toTimeString().substr(0,8);
+        $('#chatBoard').append($('<div/>')
+          .attr('class', cl)
+          .text(dateString + ' [' + m.senderName + ']: ' + m.text));
+        lastMessageId = m.messageId;
+        messageIds[currentGroup].add(m.messageId);
+      }
+      const chatBoard = document.getElementById("chatBoard");
+      chatBoard.scrollTop = chatBoard.scrollHeight;
+      return lastMessageId;
+    }
+
     window.onload = () => {
       const sio = io();
+
       // on form submit
-      let lastMessageId = '';
-      sio.on('connect', () => {
-        $('#joinForm').submit((e) => {
+      $('#joinForm').submit((e) => {
+        e.preventDefault();
+        const userId = $('#userId').val();
+        const groupId = $('#groupId').val();
+        if (userId == '' || groupId == '') return false;
+        sio.emit('join', groupId);
+        clientUserId = userId;
+        clientGroupId = groupId;
+        return false;
+      });
+
+      $('#btnLeave').click(() => {
+        sio.emit('leave', clientGroupId);
+      });
+
+      sio.on('leaveACK', () => {
+        $("#chatBoard").empty();
+        clientGroupId = null;
+      });
+
+      sio.on('errorMessage', (msg) => {
+        $('#errorMessage').text(msg);
+      });
+
+      sio.on('joinACK', (msg) => {
+        $('#currentGroup').text(msg.groupName);
+        currentGroup = msg.groupId;
+        if (messageIds[currentGroup] == null) {
+          messageIds[currentGroup] = new Set();
+          appendMessages(msg.messages);
+          msg.messages.forEach(m => messageIds[currentGroup].add(m.messageId));
+        }
+
+        $('#chatForm').submit((e) => {
+          if (clientUserId == null || clientGroupId == null) return false;
+          if (clientUserId == '' || clientGroupId == '') return false;
           e.preventDefault();
-          const userId = $('#userId').val();
-          const groupId = $('#groupId').val();
-          if (userId == '' || groupId == '') return false;
-          sio.emit('join', groupId);
+          const msg = $('#chatMessage').val();
+          const id = window.crypto
+            .getRandomValues(new Uint32Array(1))[0]
+            .toString(16);
+          myMessageIds.add(id);
+          if (msg.length > 0) {
+            sio.emit('message', {
+              userId: clientUserId,
+              text: msg,
+              messageId: id,
+              groupId: clientGroupId,
+              senderName: 'phon'
+            });
+            $('#chatMessage').val('');
+          }
           return false;
         });
+      });
 
-        sio.on('errorMessage', (msg) => {
-          $('#errorMessage').text(msg);
-        });
+      sio.on('leaveACK', (groupId) => {
+        messageIds[groupId] = null;
+      });
 
-        sio.on('joinACK', (msg) => {
-          $('#currentGroup').text(msg.groupName);
-          console.log(msg.messages);
-          $('#chatForm').submit((e) => {
-            if ($('#userId').val() == '' || $('#groupId').val() == '') return false;
-            e.preventDefault();
-            const msg = $('#chatMessage').val();
-            const id = window.crypto
-              .getRandomValues(new Uint32Array(1))[0]
-              .toString(16);
-            lastMessageId = id;
-            if (msg.length > 0) {
-              sio.emit('message', {
-                text: msg,
-                messageId: id,
-                groupId: $('#groupId').val(),
-                senderName: 'phon'
-              });
-              $('#chatMessage').val('');
-            }
-            return false;
-          });
-        });
+      sio.on('newMessage', (msg) => {
+        sio.emit('getUnread', {
+          userId: clientUserId,
+          groupId: clientGroupId,
+        })
+      });
 
-        sio.on('newMessage', (msg) => {
-          sio.emit('getUnread', {
-            userId: $('#userId').val(),
-            groupId: $('#groupId').val(),
-          })
-        });
-
-        sio.on('unreadMessage', (msg) => {
-          let latestMessageId = null;
-          for (let i = 0; i < msg.unread.length; ++i) {
-            const m = msg.unread[i];
-            const cl = (m.messageId === lastMessageId) ? 'msgOwn' : 'msgOther';
-            const datetime = new Date(m.time);
-            const dateString = datetime.toDateString() + ' ' + datetime.toTimeString().substr(0,8);
-            $('#chatBoard').append($('<div/>')
-              .attr('class', cl)
-              .text(dateString + ' [' + m.senderName + ']: ' + m.text));
-            latestMessageId = m.messageId;
-          }
+      sio.on('unreadMessage', (msg) => {
+        let lastMessageId = appendMessages(msg.unread);
+        if (lastMessageId != null) {
           sio.emit('unreadMessageACK', {
-            userId: $('#userId').val(),
-            groupId: $('#groupId').val(),
-            messageId: latestMessageId,
+            userId: clientUserId,
+            groupId: clientGroupId,
+            messageId: lastMessageId,
           });
-          var chatBoard = document.getElementById("chatBoard");
-          chatBoard.scrollTop = chatBoard.scrollHeight;
-        });
+        }
+      });
+
+      sio.on('reconnect', () => {
+        if (currentGroup != null) {
+          sio.emit('join', currentGroup);
+        }
       });
     };
   </script>
