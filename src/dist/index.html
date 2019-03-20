@@ -1,5 +1,11 @@
 <!DOCTYPE html>
 <style>
+h1 {
+  background: #fcccff;
+}
+h2 {
+  background: #ccdfff;
+}
 #chatBoard {
   width: 80%;
   height: 400px;
@@ -27,26 +33,42 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.slim.js"></script> 
   </head>
   <body>
-    <h1>Chat page example</h1>
-    Current group: <span id="currentGroup">-</span><br>
+    <h1>Welcome to pchat!</h1>
     <div>
-      <form id="joinForm">
-        <input type="text" class="longInput" id="userId" placeholder="userId" autocomplete="off"></input><br>
-        <input type="text" class="longInput" id="groupId" placeholder="groupId" autocomplete="off"></input><br>
-        <input type="submit" value="join"></input>
-      </form>
+      <h2>Register</h2>
     </div>
     <hr>
-    <div id="chatBoard"></div>
     <div>
-      <form id="chatForm">
-        <input type="text" class="longInput" id="chatMessage" placeholder="message" autocomplete="off"></input>
-        <input type="submit" value="send"></input>
-      </form>
+      <h2>Login</h2>
     </div>
-    <br>
-    Status message: <span id="statusMessage">none</span><br>
-    Error message: <span id="errorMessage">none</span>
+    <hr>
+    <div>
+      <h2>You</h2>
+      <h3>Profile</h3>
+      <h3>Groups</h3>
+    </div>
+    <hr>
+    <div>
+      <h2>Chat</h2>
+      Current group ID: <span id="currentGroup">-</span><br>
+      <div>
+        <form id="joinForm">
+          <input type="text" class="longInput" id="userId" placeholder="userId" autocomplete="off"></input><br>
+          <input type="text" class="longInput" id="groupId" placeholder="groupId" autocomplete="off"></input><br>
+          <input type="submit" value="join"></input>
+        </form>
+      </div>
+      <hr>
+      <div id="chatBoard"></div>
+      <div>
+        <form id="chatForm">
+          <input type="text" class="longInput" id="chatMessage" placeholder="message" autocomplete="off"></input>
+          <input type="submit" value="send"></input>
+        </form>
+      </div>
+      <br>
+      Error message: <span id="errorMessage">none</span>
+    </div>
   </body>
   <script>
     window.onload = () => {
@@ -68,7 +90,6 @@
         });
 
         sio.on('joinACK', (msg) => {
-          $('#statusMessage').text('joinACK: ' + msg);
           $('#currentGroup').text(msg);
           $('#chatForm').submit((e) => {
             if ($('#userId').val() == '' || $('#groupId').val() == '') return false;
@@ -92,7 +113,6 @@
         });
 
         sio.on('newMessage', (msg) => {
-          $('#statusMessage').text('newMessage: ' + msg);
           sio.emit('getUnread', {
             userId: $('#userId').val(),
             groupId: $('#groupId').val(),
@@ -101,7 +121,6 @@
 
         sio.on('unreadMessage', (msg) => {
           let latestMessageId = null;
-          $('#statusMessage').text('unreadMessage: ' + msg);
           for (let i = 0; i < msg.unread.length; ++i) {
             const m = msg.unread[i];
             const cl = (m.messageId === lastMessageId) ? 'msgOwn' : 'msgOther';
