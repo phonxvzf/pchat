@@ -18,7 +18,6 @@
             padding-top:20px;
             padding-bottom: 20px;
             margin: auto;
-            display: none;
             margin-top: 40px;
             width: 400px">
         <h1 style="color:darkslateblue">Welcome to pchat</h1>
@@ -44,7 +43,7 @@
     </div>
 
     <!--Main Page-->
-    <div id="main" style="display: block; margin: 20px">
+    <div id="main" style="display: none; margin: 20px">
        	<nav class="navbar navbar-light" style="background-color: skyblue">
   			<span class="navbar-brand mb-0 h1">pchat</span>
   			<span id="DNMain" class="navbar-text">Display name:</span>
@@ -91,8 +90,12 @@
 
     <!--Group-->
     <div id="group" style="display:none;">
-        <button onclick="Exit()" style="float :right">Exit</button>
-        <p id="GID">Group id:</p>
+              	<nav class="navbar navbar-light" style="background-color: skyblue">
+  			<span class="navbar-brand mb-0 h1">pchat</span>
+  			<span id="GID" class="navbar-text">Group id:</span>
+  			<button class="btn btn-danger" onclick="Exit()" style="float :right">Exit</button>
+		</nav>
+        
         <table style="background-color: royalblue">
             <tr>
                 <td>
@@ -105,8 +108,13 @@
             <tr>
                 <td>
                     <form id="chatForm">
-                        <input type="text" id="chatMessage" placeholder="message" autocomplete="off"></input>
-                        <input type="submit" value="send"></input>
+                       <div class="form-row">
+                       		<div class="col">
+                       			<input type="text" class="form-control" id="chatMessage" placeholder="message" autocomplete="off"></input></div>
+                        <input class="btn btn-success" type="submit" value="send"></input>
+                       		
+                       </div>
+                        
                     </form>
                 </td>
             </tr>
