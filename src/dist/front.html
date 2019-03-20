@@ -5,6 +5,7 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
         integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.slim.js"></script>
 </header>
 
 <body>
@@ -22,51 +23,36 @@
         <h1 style="color:darkslateblue">Welcome to pchat</h1>
 
         <p>For existing user, please log in.</p>
-        <table align="center">
-            <tr>
-                <td>User name:</td>
-                <td><input id="UNLoginBox" type="text"></td>
-            </tr>
-            <tr>
-                <td>Password:</td>
-                <td><input id="PWLoginBox" type="password"></td>
-            </tr>
-        </table>
-        <button onclick="Login()">Login</button><br>
-        <button onclick="Forget()">Forget Password</button>
+        <form id="loginForm">
+            <input type="text" placeholder="UserName" id="UNLoginBox"><br>
+            <input type="password" placeholder="Password" id="PWLoginBox"><br>
+            <input type="submit" value="Login">
+        </form>
+        <button id="forget">Forget Password</button>
         <p id="LoginWarning" style="color:red"></p>
 
         <p>For new user, please create new account.</p>
-        <table align="center">
-            <tr>
-                <td>User name:</td>
-                <td><input id="UNRegBox" type="text"></td>
-            </tr>
-            <tr>
-                <td>Password:</td>
-                <td><input id="PWRegBox" type="password"></td>
-            </tr>
-            <tr>
-                <td>Display name:</td>
-                <td><input id="DNRegBox" type="text"></td>
-            </tr>
-        </table>
-        <button onclick="Register()">Register</button>
+        <form id="regForm">
+            <input type="text" placeholder="UserName" id="UNRegBox"><br>
+            <input type="password" placeholder="Password" id="PWRegBox"><br>
+            <input type="text" placeholder="DisplayName" id="DNRegBox"><br>
+            <input type="submit" value="Register">
+        </form>
         <p id="RegWarning" style="color:red"></p>
 
     </div>
 
     <!--Main Page-->
     <div id="main" style="display: none; margin: 20px">
-        <button onclick="Logout()" style="float :right">Logout</button>
+        <button id="logout" style="float :right">Logout</button>
         <p id="UNMain">User name:</p>
         <p id="DNMain">Display name:</p>
         <p><u>My Group</u></p>
 
         <table id="myTable" border="1">
-            <col width="100">
-            <col width="300">
             <col width="200">
+            <col width="300">
+            <col width="150">
             <tr>
                 <td>Group ID</td>
                 <td>Group name</td>
@@ -75,19 +61,15 @@
         </table>
 
         <p><u>Join/Create new Group</u></p>
+        <form id="joinForm">
+            <input type="text" id="groupId" placeholder="groupId"></input>
+            <input type="submit" value="Join"></input>
+        </form>
 
-        <table>
-            <tr>
-                <td style="text-align:right">GroupID:</td>
-                <td><input id="GIDBox" type="text"></td>
-                <td style="text-align:left;"><button onclick="JoinGroup()">Join</button></td>
-            </tr>
-            <tr>
-                <td>Group Name:</td>
-                <td><input id="GNameBox" type="text"></td>
-                <td><button onclick="CreteGroup()">Create</button></td>
-            </tr>
-        </table>
+        <form id="createForm">
+            <input type="text" id="groupName" placeholder="groupName"></input>
+            <input type="submit" value="Create"></input>
+        </form>
 
         <p id="test"></p>
     </div>
@@ -99,182 +81,300 @@
         <table style="background-color: royalblue">
             <tr>
                 <td>
-                    <div id="chatroom"
-                        style="width: 820px; height: 500px;
+                    <div id="chatroom" style="width: 820px; height: 500px;
                         position: relative; background-color: white;
                         overflow: auto;">
-
                     </div>
                 </td>
             </tr>
             <tr>
                 <td>
-                    <input id="message" type="text" size="100">
-                    <button onclick="Send()">Send</button>
+                    <form id="chatForm">
+                        <input type="text" id="chatMessage" placeholder="message" autocomplete="off"></input>
+                        <input type="submit" value="send"></input>
+                    </form>
                 </td>
             </tr>
         </table>
     </div>
 
     <script>
-        var username, password, displayname;
-        var main = $("#main")[0];
-        var home = $("#home")[0];
-        var group = $("#group")[0];
-        var room = $("#chatroom")[0];
-        var grouplist = [];
+        window.onload = () => {
+            $.ajaxSetup({
+                contentType: "application/json; charset=utf-8"
+            });
+            var origin = window.location.origin;
+            origin = "http://192.168.43.162:8080";
+            var username, password, displayname, userId;
+            var main = $("#main")[0];
+            var home = $("#home")[0];
+            var group = $("#group")[0];
+            var room = $("#chatroom")[0];
+            var grouplist = [];
 
-        //Home Page Script//
-        function Login() {
-            username = $('#UNLoginBox')[0].value;
-            password = $('#PWLoginBox')[0].value;
-            displayname = "-";
-            if ((username == "") || (password == "")) {
-                $('#LoginWarning')[0].innerHTML = "Look like you doesn't enter username or password.";
-            }
-            else {
-                //cname = <<<Get username from Database using CID>>;
-                //document.getElementById("cnameMain").innerHTML = "Name: " + cname;
-                $.post(
-                    window.location.origin + '/login',
-                    { login: 'username', password: 'password' },
-                    function (disname) { displayname = disname; }
-                );
+            //Home Page Script//
+            $("#loginForm").submit((e) => {
+                e.preventDefault();
+                username = $('#UNLoginBox').val();
+                password = $('#PWLoginBox').val();
+                displayname = "-";
+                if ((username == "") || (password == "")) {
+                    $('#LoginWarning')[0].innerHTML = "Look like you doesn't enter username or password.";
+                }
+                else {
+                    $.post(
+                        origin + '/api/login',
+                        JSON.stringify({ login: "" + username, password: "" + password }),
+                        function (obj) {
+                            displayname = obj.name;
+                            userId = obj.userId;
+                            $.post(
+                                origin + "/api/memberOf",
+                                JSON.stringify({ userId: "" + userId }),
+                                function (obj1) {
+                                    for (i = 0; i < obj1.length; i++) {
+                                        var newgroup = { gid: "" + obj1[i].groupId, gname: "" + obj1[i].name };
+                                        grouplist.push(newgroup);
+                                        AddGroup(newgroup.gid, newgroup.gname);
+                                    }
+                                },
+                                "json"
+                            )
+                            toMainPage();
+                        },
+                        "json"
+                    );
+                }
+                return false;
+            });
+            $("#regForm").submit((e) => {
+                e.preventDefault();
+                username = $('#UNRegBox').val();
+                password = $('#PWRegBox').val();
+                displayname = $("#DNRegBox").val();
+                if ((username == "") || (password == "") || (displayname == "")) {
+                    $('#RegWarning')[0].innerHTML = "Look like you doesn't enter username or password.";
+                }
+                else {
+                    $.post(
+                        origin + '/api/register',
+                        JSON.stringify({ login: "" + username, name: "" + displayname, password: "" + password }),
+                        function (obj) {
+                            userId = obj.userId;
+                            toMainPage();
+                        },
+                        "json"
+                    );
+                }
+                return false;
+            });
+            $("#forget").click((e)=>{
+                $('#LoginWarning').text("Just create new ID. We will delete your account later.");    
+            });
+            //End of Home Page Script//
 
-                //And "GET" group list from backend as well. This is only a demo.
-                //grouplist = ...
-                toMainPage();
+            //Main Page Script//   
+            $("#logout").click((e)=>{
+                $("#PWLoginBox").val("");
+                $("#PWRegBox").val("");
+                $("#DNRegBox").val("");
+                $("#DNMain").val("");
+                $("#UNMain").text("User name:");
+                $("#DNMain").text("Display name:");
+                toHomePage();
+            });
+            $("#joinForm").submit((e) => {
+                e.preventDefault();
+                var gid1 = $("#groupId").val();
+                if (gid1.length == 24) {
+                    $.post(
+                        origin + '/api/join',
+                        JSON.stringify({ userId: "" + userId, groupId: "" + gid1 }),
+                        function (obj) {
+                            gname1 = obj.groupName;
+                            $("#groupId")[0].value = "";
+                            var newgroup = { gid: "" + gid1, gname: "" + gname1 };
+                            grouplist.push(newgroup);
+                            AddGroup(gid1, gname1);
+                        },
+                        "json"
+                    );
+                }
+                return false;
+            })
+            $("#createForm").submit((e) => {
+                e.preventDefault();
+                var gname1 = $("#groupName").val();
+                if (true) {
+                    $.post(
+                        origin + '/api/group',
+                        JSON.stringify({ userId: "" + userId, groupName: "" + gname1 }),
+                        function (obj) {
+                            gid1 = obj.groupId;
+                            $("#groupName").val("");
+                            var newgroup = { gid: "" + gid1, gname: "" + gname1 };
+                            grouplist.push(newgroup);
+                            AddGroup(gid1, gname1);
+                        },
+                        "json"
+                    );
+                }
+                return false;
+            })
+            function AddGroup(newgid, newgname) {
+                var table = $("#myTable")[0];
+                var x = table.rows.length;
+                var row = table.insertRow(x);
+                var cell1 = row.insertCell(0);
+                var cell2 = row.insertCell(1);
+                var cell3 = row.insertCell(2);
+                cell1.innerHTML = newgid;
+                cell2.innerHTML = newgname;
+                cell3.innerHTML = "<button onclick='ViewGroup(this)' value=" + newgid + ">View</button>" +
+                    "<button onclick='LeaveGroup(this)' value=" + newgid + ">Leave</button>";
             }
-        }
-        function Register() {
-            username = $('#UNRegBox')[0].value;
-            password = $('#PWRegBox')[0].value;
-            displayname = $("#DNRegBox")[0].value;
-            if ((username == "") || (password == "") || (displayname == "")) {
-                $('#RegWarning')[0].innerHTML = "Look like you doesn't enter username or password.";
-            }
-            else {
-                $.post(
-                    window.location.origin + '/register',
-                    { login: 'username', name: 'displayname', password: 'password' },
-                );
-                toMainPage();
-            }
-        }
-        function Forget() {
-            $('#LoginWarning')[0].innerHTML = "Just create new ID. We will delete your account later.";
-        }
-        //End of Home Page Script//
-
-        //Main Page Script//    
-        function Logout() {
-            $("#PWLoginBox")[0].value = "";
-            $("#PWRegBox")[0].value = "";
-            $("#DNRegBox")[0].value = "";
-            $("#DNMain")[0].value = "";
-            $("#UNMain")[0].innerHTML = "User name:";
-            $("#DNMain")[0].innerHTML = "Display name:";
-            toHomePage();
-        }
-        function JoinGroup() {
-            var gid1 = $("#GIDBox")[0].value;
-            var gname1 = "-";//Search Group Name from database.
-            $("#GIDBox")[0].value = "";
-            var newgroup = { gid: "" + gid1, gname: "" + gname1 };
-            grouplist.push(newgroup);
-            AddGroup(gid1, gname1);
-        }
-        function CreteGroup() {
-            var gname1 = $("#GNameBox")[0].value;
-            var gid1 = "-";//Generate new group ID from backend.
-            $("#GNameBox")[0].value = "";
-            var newgroup = { gid: "" + gid1, gname: "" + gname1 };
-            grouplist.push(newgroup);
-            AddGroup(gid1, gname1);
-        }
-        function AddGroup(newgid, newgname) {
-            var table = $("#myTable")[0];
-            var x = table.rows.length;
-            var row = table.insertRow(x);
-            var cell1 = row.insertCell(0);
-            var cell2 = row.insertCell(1);
-            var cell3 = row.insertCell(2);
-            cell1.innerHTML = newgid;
-            cell2.innerHTML = newgname;
-            cell3.innerHTML = "<button onclick='ViewGroup(this)' value=" + newgid + ">View</button>" +
-                "<button onclick='LeaveGroup(this)' value=" + newgid + ">Leave</button>";
-        }
-        function LeaveGroup(btn) {
-            var row = btn.parentNode.parentNode;
-            row.parentNode.removeChild(row);
-            for (i = 0; i < grouplist.length; i++) {
-                if (grouplist[i]["gid"] === btn.value) {
-                    var removed = grouplist.splice(i, 1);
-                    $("#test")[0].innerHTML = "Leaving Group " + removed[0]["gname"];
-                    break;
+            function LeaveGroup(btn) {
+                var row = btn.parentNode.parentNode;
+                row.parentNode.removeChild(row);
+                for (i = 0; i < grouplist.length; i++) {
+                    if (grouplist[i]["gid"] === btn.value) {
+                        var removed = grouplist.splice(i, 1);
+                        $("#test")[0].innerHTML = "Leaving Group " + removed[0]["gname"];
+                        break;
+                    }
                 }
             }
-        }
-        function ViewGroup(btn) {
-            $("#test")[0].innerHTML = "Go to Group " + btn.value;
-            toGroupPage(btn.value);
-        }
-        //End of Main Page Script//
+            function ViewGroup(btn) { //join socket.io
+                $("#test")[0].innerHTML = "Go to Group " + btn.value;
+                toGroupPage(btn.value);
+            }
+            //End of Main Page Script//
 
-        //Group Page Script//
-        function Send() {
-            var message = $("#message")[0].value;
-            if (message !== "") {
-                AddMessage(new Date().toLocaleTimeString(), displayname, message);
+            //Group Page Script//
+            function Send() {
+                var message = $("#message")[0].value;
+                if (message !== "") {
+                    AddMessage(new Date().toLocaleTimeString(), displayname, message);
+                    $("#message")[0].value = "";
+                }
+            }
+            function AddMessage(time, author, message) {
+                var timeTag = "<p style='color:red; display: inline;'>(" + time + ")</p>";
+                var authorTag = "<p style='color:indigo; display: inline;'>" + author + ": </p>";
+
+                var temp = room.innerHTML;
+                room.innerHTML = temp + "<p>" + timeTag + authorTag + message + "</p>";
+                room.scrollTop = room.scrollHeight;
+            }
+            function Exit() { //leave io
+                room.innerHTML = "";
                 $("#message")[0].value = "";
+                toMainPage();
             }
-        }
-        function AddMessage(time, author, message) {
-            var timeTag = "<p style='color:red; display: inline;'>(" + time + ")</p>";
-            var authorTag = "<p style='color:indigo; display: inline;'>" + author + ": </p>";
+            //End of Group Page Script//
 
-            var temp = room.innerHTML;
-            room.innerHTML = temp + "<p>" + timeTag + authorTag + message + "</p>";
-            room.scrollTop = room.scrollHeight;
-        }
-        function Exit() {
-            room.innerHTML = "";
-            $("#message")[0].value = "";
-            toMainPage();
-        }
-        //End of Group Page Script//
+            //Page Manage Script//
+            function toMainPage() {
+                var table = $("#myTable")[0];
+                while (table.rows.length > 1) {
+                    table.deleteRow(1);
+                }
+                for (i = 0; i < grouplist.length; i++) {
+                    AddGroup(grouplist[i]["gid"], grouplist[i]["gname"]);
+                }
+                $("#UNMain")[0].innerHTML = "User name: " + username;
+                $("#DNMain")[0].innerHTML = "Display name: " + displayname;
+                main.style.display = "block";
+                home.style.display = "none";
+                group.style.display = "none";
+            }
+            function toHomePage() {
+                $("#UNLoginBox")[0].value = "";
+                $("#UNRegBox")[0].value = "";
+                $("#LoginWarning")[0].innerHTML = "";
+                $("#RegWarning")[0].innerHTML = "";
+                main.style.display = "none";
+                home.style.display = "block";
+                group.style.display = "none";
+            }
+            function toGroupPage(gid) {
+                $("#GID")[0].innerHTML = "Group ID: " + gid;
+                main.style.display = "none";
+                home.style.display = "none";
+                group.style.display = "block";
+            }
+            //End of Page Manage Script//
 
-        //Page Manage Script//
-        function toMainPage() {
-            var table = $("#myTable")[0];
-            while (table.rows.length > 1) {
-                table.deleteRow(1);
-            }
-            for (i = 0; i < grouplist.length; i++) {
-                AddGroup(grouplist[i]["gid"], grouplist[i]["gname"]);
-            }
-            $("#UNMain")[0].innerHTML = "User name: " + username;
-            $("#DNMain")[0].innerHTML = "Display name: " + displayname;
-            main.style.display = "block";
-            home.style.display = "none";
-            group.style.display = "none";
-        }
-        function toHomePage() {
-            $("#UNLoginBox")[0].value = "";
-            $("#UNRegBox")[0].value = "";
-            $("#LoginWarning")[0].innerHTML = "";
-            $("#RegWarning")[0].innerHTML = "";
-            main.style.display = "none";
-            home.style.display = "block";
-            group.style.display = "none";
-        }
-        function toGroupPage(gid) {
-            $("#GID")[0].innerHTML = "Group ID: " + gid;
-            main.style.display = "none";
-            home.style.display = "none";
-            group.style.display = "block";
-        }
-        //End of Page Manage Script//
+            //Socket io
+            const sio = io(origin);
+            // on form submit
+            let lastMessageId = '';
+            sio.on('connect', () => {
+                $('#joinForm').submit((e) => {
+                    e.preventDefault();
+                    const userId = $('#userId').val();
+                    const groupId = $('#groupId').val();
+                    if (userId == '' || groupId == '') return false;
+                    sio.emit('join', groupId);
+                    return false;
+                });
+
+                sio.on('errorMessage', (msg) => {
+                    $('#errorMessage').text(msg);
+                });
+
+                sio.on('joinACK', (msg) => {
+                    $('#currentGroup').text(msg);
+                    $('#chatForm').submit((e) => {
+                        if ($('#userId').val() == '' || $('#groupId').val() == '') return false;
+                        e.preventDefault();
+                        const msg = $('#chatMessage').val();
+                        const id = window.crypto
+                            .getRandomValues(new Uint32Array(1))[0]
+                            .toString(16);
+                        lastMessageId = id;
+                        if (msg.length > 0) {
+                            sio.emit('message', {
+                                text: msg,
+                                messageId: id,
+                                groupId: $('#groupId').val(),
+                                senderName: 'phon'
+                            });
+                            $('#chatMessage').val('');
+                        }
+                        return false;
+                    });
+                });
+
+                sio.on('newMessage', (msg) => {
+                    sio.emit('getUnread', {
+                        userId: $('#userId').val(),
+                        groupId: $('#groupId').val(),
+                    })
+                });
+
+                sio.on('unreadMessage', (msg) => {
+                    let latestMessageId = null;
+                    for (let i = 0; i < msg.unread.length; ++i) {
+                        const m = msg.unread[i];
+                        const cl = (m.messageId === lastMessageId) ? 'msgOwn' : 'msgOther';
+                        const datetime = new Date(m.time);
+                        const dateString = datetime.toDateString() + ' ' + datetime.toTimeString().substr(0, 8);
+                        $('#chatBoard').append($('<div/>')
+                            .attr('class', cl)
+                            .text(dateString + ' [' + m.senderName + ']: ' + m.text));
+                        latestMessageId = m.messageId;
+                    }
+                    sio.emit('unreadMessageACK', {
+                        userId: $('#userId').val(),
+                        groupId: $('#groupId').val(),
+                        messageId: latestMessageId,
+                    });
+                    var chatBoard = document.getElementById("chatBoard");
+                    chatBoard.scrollTop = chatBoard.scrollHeight;
+                });
+            });
+        };
     </script>
 </body>
 
