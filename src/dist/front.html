@@ -59,7 +59,7 @@
         <p id="DNMain">Display name:</p>
         <p><u>My Group</u></p>
 
-        <table id="myTable">
+        <table id="myTable" border="1">
             <col width="100">
             <col width="300">
             <col width="200">
@@ -88,11 +88,51 @@
         <p id="test"></p>
     </div>
 
+    <!--Group-->
+    <div id="group" style="display:none;">
+        <button onclick="Exit()" style="float :right">Exit</button>
+        <p id="GID">Group id:</p>
+        <p id="GName">Group name:</p>
+        <table style="bottom: 10px; position: absolute;">
+            <tr>
+                <td>
+                    <div style="width: 770px; height: 200px; position: relative; overflow: auto;">
+                        <table id="chatroom" border="1" style="bottom: 0px; position:absolute;">
+                            <col width="170">
+                            <col width="100">
+                            <col width="500">
+                        </table>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <table border="1">
+                        <col width="170">
+                        <col width="100">
+                        <col width="500">
+                        <tr>
+                            <td>Time</td>
+                            <td>Author</td>
+                            <td>Message</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <input id="message" type="text" size="100">
+                    <button onclick="Send()">Send</button>
+                </td>
+            </tr>
+        </table>
+    </div>
+
     <script>
         var username, password, displayname;
-        var main = document.getElementById("main");
-        var home = document.getElementById("home");
-        var group = document.getElementById("group");
+        var main = $("#main")[0];
+        var home = $("#home")[0];
+        var group = $("#group")[0];
         var grouplist = [];
 
         //Home Page Script//
@@ -109,7 +149,7 @@
                 $.post(
                     window.location.origin + '/login',
                     { login: 'username', password: 'password' },
-                    function(disname){displayname = disname;}
+                    function (disname) { displayname = disname; }
                 );
 
                 //And "GET" group list from backend as well. This is only a demo.
@@ -188,10 +228,27 @@
         }
         function ViewGroup(btn) {
             $("#test")[0].innerHTML = "Go to Group " + btn.value;
+            toGroupPage(btn.value);
         }
         //End of Main Page Script//
 
         //Group Page Script//
+        function Send() {
+            $("#test")[0].innerHTML = "Sending... ";
+            var table = $("#chatroom")[0];
+            var x = table.rows.length;
+            var row = table.insertRow(x);
+            var cell1 = row.insertCell(0);
+            var cell2 = row.insertCell(1);
+            var cell3 = row.insertCell(2);
+            cell1.innerHTML = "<p style='color:red'>" + new Date().toLocaleString() + "</p>";
+            cell2.innerHTML = "<p style='color:indigo'>" + displayname + "</p>";
+            cell3.innerHTML = $("#message")[0].value;
+            $("#message")[0].value = "";
+        }
+        function Exit() {
+            toMainPage();
+        }
         //End of Group Page Script//
 
         //Page Manage Script//
@@ -218,7 +275,9 @@
             home.style.display = "block";
             group.style.display = "none";
         }
-        function toGroupPage() {
+        function toGroupPage(gid) {
+            $("#GID")[0].innerHTML = "Group ID: " + gid;
+            //$("#GName")[0].value = "Group name: " + gname;
             main.style.display = "none";
             home.style.display = "none";
             group.style.display = "block";
