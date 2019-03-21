@@ -8,6 +8,10 @@ const mongoClient = mongo.MongoClient;
 const bcrypt = require('bcrypt');
 
 const PORT = process.env.PORT || 3000;
+const ANOTHER_PORT = (PORT == 3000) ? 3001 : 3000;
+const ANOTHER_SERVER = (process.env.NODE_ENV === 'production') ? ((PORT == 3000) ? 'app2' : 'app1') : 'localhost';
+const syncSocket = require('socket.io-client')(`http://${ANOTHER_SERVER}:${ANOTHER_PORT}`);
+
 const MONGO_HOST = process.env.MONGO_HOST || 'localhost';
 const MONGO_URL = `mongodb://${MONGO_HOST}:27017/pchat`;
 
@@ -306,6 +310,10 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
   });
 
   sio.on('connection', (socket) => {
+    socket.on('syncNewMessage', (msg) => {
+      sio.to(msg.groupId).emit('newMessage', { groupId: msg.groupId });
+    })
+
     socket.on('join', (room) => {
       if (room != '' && room.length === 24) {
         mongodb.collection('group').findOne(
@@ -435,6 +443,7 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
                     socket.emit('errorMessage', 'Database error');
                   } else {
                     sio.to(groupId).emit('newMessage', { groupId });
+                    syncSocket.emit('syncNewMessage', { groupId });
                   }
                 }
               )
