@@ -10,7 +10,7 @@
 
 <body>
     <!--Home Page-->
-    <div  class="container" id="home" style="text-align: center; 
+    <div class="container" id="home" style="text-align: center; 
             border: darkslateblue;
             border-style: dashed;
             background-color:skyblue;
@@ -44,12 +44,12 @@
 
     <!--Main Page-->
     <div id="main" style="display: none; margin: 20px">
-       	<nav class="navbar navbar-light" style="background-color: skyblue">
-  			<span class="navbar-brand mb-0 h1">pchat</span>
-  			<span id="DNMain" class="navbar-text">Display name:</span>
-  			<button class="btn btn-secondary" id="logout" style="float :right">Logout</button>
-		</nav>
-      
+        <nav class="navbar navbar-light" style="background-color: skyblue">
+            <span class="navbar-brand mb-0 h1">pchat</span>
+            <span id="DNMain" class="navbar-text">Display name:</span>
+            <button class="btn btn-secondary" id="logout" style="float :right">Logout</button>
+        </nav>
+
         <p id="UNMain">User name:</p>
         <!--<p id="DNMain">Display name:</p>-->
         <p><u>My Group</u></p>
@@ -67,22 +67,22 @@
 
         <p><u>Join/Create new Group</u></p>
         <form id="joinForm">
-           <div class="form-row">
-         	<div class="col-2">
-          	<input type="text" class="form-control" id="groupId" placeholder="groupId">
-           	</div>
-           	<input type="submit" class="btn btn-outline-secondary" value="Join">
-           </div>
-            
+            <div class="form-row">
+                <div class="col-2">
+                    <input type="text" class="form-control" id="groupId" placeholder="groupId">
+                </div>
+                <input type="submit" class="btn btn-outline-secondary" value="Join">
+            </div>
+
         </form>
 
         <form id="createForm">
-           <div class="form-row">
-         	<div class="col-2">
-          	<input type="text" class="form-control" id="groupName" placeholder="groupName">
-           	</div>
-           	<input type="submit" class="btn btn-outline-secondary" value="Create">
-           </div>
+            <div class="form-row">
+                <div class="col-2">
+                    <input type="text" class="form-control" id="groupName" placeholder="groupName">
+                </div>
+                <input type="submit" class="btn btn-outline-secondary" value="Create">
+            </div>
         </form>
 
         <p id="test"></p>
@@ -90,12 +90,13 @@
 
     <!--Group-->
     <div id="group" style="display:none;">
-              	<nav class="navbar navbar-light" style="background-color: skyblue">
-  			<span class="navbar-brand mb-0 h1">pchat</span>
-  			<span id="GID" class="navbar-text">Group id:</span>
-  			<button class="btn btn-danger" onclick="Exit()" style="float :right">Exit</button>
-		</nav>
-        
+        <nav class="navbar navbar-light" style="background-color: skyblue">
+            <span class="navbar-brand mb-0 h1">pchat</span>
+            <span class="navbar-text">Group id:</span>
+            <span id="groupId" class="navbar-text"></span>
+            <button class="btn btn-danger" id="exit" style="float :right">Exit</button>
+        </nav>
+
         <table style="background-color: royalblue">
             <tr>
                 <td>
@@ -108,13 +109,13 @@
             <tr>
                 <td>
                     <form id="chatForm">
-                       <div class="form-row">
-                       		<div class="col">
-                       			<input type="text" class="form-control" id="chatMessage" placeholder="message" autocomplete="off"></input></div>
-                        <input class="btn btn-success" type="submit" value="send"></input>
-                       		
-                       </div>
-                        
+                        <div class="form-row">
+                            <div class="col">
+                                <input type="text" class="form-control" id="chatMessage" placeholder="message"
+                                    autocomplete="off"></input>
+                            </div>
+                            <input class="btn btn-success" type="submit" value="send"></input>
+                        </div>
                     </form>
                 </td>
             </tr>
@@ -134,6 +135,7 @@
             var group = $("#group")[0];
             var room = $("#chatroom")[0];
             var grouplist = [];
+            var currentGroupId;
 
             //Home Page Script//
             $("#loginForm").submit((e) => {
@@ -191,13 +193,13 @@
                 }
                 return false;
             });
-            $("#forget").click((e)=>{
-                $('#LoginWarning').text("Just create new ID. We will delete your account later.");    
+            $("#forget").click((e) => {
+                $('#LoginWarning').text("Just create new ID. We will delete your account later.");
             });
             //End of Home Page Script//
 
             //Main Page Script//   
-            $("#logout").click((e)=>{
+            $("#logout").click((e) => {
                 $("#PWLoginBox").val("");
                 $("#PWRegBox").val("");
                 $("#DNRegBox").val("");
@@ -253,8 +255,8 @@
                 var cell3 = row.insertCell(2);
                 cell1.innerHTML = newgid;
                 cell2.innerHTML = newgname;
-                cell3.innerHTML = "<button onclick='ViewGroup(this)' value=" + newgid + ">View</button>" +
-                    "<button onclick='LeaveGroup(this)' value=" + newgid + ">Leave</button>";
+                cell3.innerHTML = "<button id='viewGroup' value=" + newgid + ">View</button>" +
+                    "<button id='leaveGroup' value=" + newgid + ">Leave</button>";
             }
             function LeaveGroup(btn) {
                 var row = btn.parentNode.parentNode;
@@ -267,20 +269,27 @@
                     }
                 }
             }
-            function ViewGroup(btn) { //join socket.io
+
+            /*function ViewGroup(btn) { //join socket.io
                 $("#test")[0].innerHTML = "Go to Group " + btn.value;
                 toGroupPage(btn.value);
-            }
+            }*/
+
+            $("#leaveGroup").click((e) => {
+                e.preventDefault();
+                var me = $(this);
+                $.post(
+                    origin + "/api/leave",
+                    JSON.stringify({ userId: userId, groupId: this.val() }),
+                    function (obj) {
+                        LeaveGroup(me);//delete this group from grouplist in main page.
+                    }
+                );
+                return false;
+            });
             //End of Main Page Script//
 
             //Group Page Script//
-            function Send() {
-                var message = $("#message")[0].value;
-                if (message !== "") {
-                    AddMessage(new Date().toLocaleTimeString(), displayname, message);
-                    $("#message")[0].value = "";
-                }
-            }
             function AddMessage(time, author, message) {
                 var timeTag = "<p style='color:red; display: inline;'>(" + time + ")</p>";
                 var authorTag = "<p style='color:indigo; display: inline;'>" + author + ": </p>";
@@ -288,11 +297,6 @@
                 var temp = room.innerHTML;
                 room.innerHTML = temp + "<p>" + timeTag + authorTag + message + "</p>";
                 room.scrollTop = room.scrollHeight;
-            }
-            function Exit() { //leave io
-                room.innerHTML = "";
-                $("#message")[0].value = "";
-                toMainPage();
             }
             //End of Group Page Script//
 
@@ -321,7 +325,7 @@
                 group.style.display = "none";
             }
             function toGroupPage(gid) {
-                $("#GID")[0].innerHTML = "Group ID: " + gid;
+                $("#groupId").val(gid);
                 main.style.display = "none";
                 home.style.display = "none";
                 group.style.display = "block";
@@ -330,52 +334,89 @@
 
             //Socket io
             const sio = io(origin);
-            // on form submit
             let lastMessageId = '';
             sio.on('connect', () => {
-                $('#joinForm').submit((e) => {
-                    e.preventDefault();
-                    const userId = $('#userId').val();
-                    const groupId = $('#groupId').val();
-                    if (userId == '' || groupId == '') return false;
-                    sio.emit('join', groupId);
-                    return false;
+                $("#viewGroup").click((e) => {
+                    var me = $(this);
+                    currentGroupId = this.val();
+                    if (currentGroupId == '') return false;
+
+                    //Tell socket.io that we want to join this chatroom.
+                    sio.emit('join', currentGroupId);
                 });
 
+                //Button for exit from chatroom. Or 'leave' group in socket.io. 
+                $("#exit").click((e) => {
+                    //Tell everyone that we are leaving chatroom.
+                    var msg = " has left chat.";
+                    const id = window.crypto
+                        .getRandomValues(new Uint32Array(1))[0]
+                        .toString(16);
+                    lastMessageId = id;
+                    sio.emit('message', {
+                        text: msg,
+                        messageId: id,
+                        groupId: currentGroupId,
+                        senderName: displayname
+                    });
+                    sio.emit("leave", currentGroupId);
+                });
+
+                sio.on("leaveACK",(e)=>{
+                    currentGroupId = "-";
+                    toMainPage();
+                });
                 sio.on('errorMessage', (msg) => {
                     $('#errorMessage').text(msg);
                 });
 
+                //Tell that we join chat room succesfully.
                 sio.on('joinACK', (msg) => {
-                    $('#currentGroup').text(msg);
-                    $('#chatForm').submit((e) => {
-                        if ($('#userId').val() == '' || $('#groupId').val() == '') return false;
-                        e.preventDefault();
-                        const msg = $('#chatMessage').val();
-                        const id = window.crypto
-                            .getRandomValues(new Uint32Array(1))[0]
-                            .toString(16);
-                        lastMessageId = id;
-                        if (msg.length > 0) {
-                            sio.emit('message', {
-                                text: msg,
-                                messageId: id,
-                                groupId: $('#groupId').val(),
-                                senderName: 'phon'
-                            });
-                            $('#chatMessage').val('');
-                        }
-                        return false;
+                    $('#currentGroup').text(msg.groupName);
+                    toGroupPage(groupId);
+                    console.log(msg.messages);
+                    var msg = " has joined chat.";
+                    const id = window.crypto
+                        .getRandomValues(new Uint32Array(1))[0]
+                        .toString(16);
+                    lastMessageId = id;
+                    sio.emit('message', {
+                        text: msg,
+                        messageId: id,
+                        groupId: currentGroupId,
+                        senderName: displayname
                     });
                 });
 
+                $('#chatForm').submit((e) => {
+                    if (currentGroupId == '') return false;
+                    e.preventDefault();
+                    const msg = $('#chatMessage').val();
+                    const id = window.crypto
+                        .getRandomValues(new Uint32Array(1))[0]
+                        .toString(16);
+                    lastMessageId = id;
+                    if (msg.length > 0) {
+                        sio.emit('message', {
+                            text: msg,
+                            messageId: id,
+                            groupId: currentGroupId,
+                            senderName: displayname
+                        });
+                        $('#chatMessage').val('');
+                    }
+                    return false;
+                });
+
+                //Tell that we have new message, pls respond.
                 sio.on('newMessage', (msg) => {
                     sio.emit('getUnread', {
-                        userId: $('#userId').val(),
-                        groupId: $('#groupId').val(),
+                        userId: userId,
+                        groupId: currentGroupId,
                     })
                 });
 
+                //Tell what message that we miss.
                 sio.on('unreadMessage', (msg) => {
                     let latestMessageId = null;
                     for (let i = 0; i < msg.unread.length; ++i) {
@@ -383,18 +424,16 @@
                         const cl = (m.messageId === lastMessageId) ? 'msgOwn' : 'msgOther';
                         const datetime = new Date(m.time);
                         const dateString = datetime.toDateString() + ' ' + datetime.toTimeString().substr(0, 8);
-                        $('#chatBoard').append($('<div/>')
-                            .attr('class', cl)
-                            .text(dateString + ' [' + m.senderName + ']: ' + m.text));
                         latestMessageId = m.messageId;
+                        AddMessage(dateString, m.senderName, m.text);
                     }
+
+                    //Tell DB that we have read unread message.
                     sio.emit('unreadMessageACK', {
-                        userId: $('#userId').val(),
-                        groupId: $('#groupId').val(),
+                        userId: user,
+                        groupId: currentGroupId,
                         messageId: latestMessageId,
                     });
-                    var chatBoard = document.getElementById("chatBoard");
-                    chatBoard.scrollTop = chatBoard.scrollHeight;
                 });
             });
         };

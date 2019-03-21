@@ -420,6 +420,7 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
               console.log(err);
               socket.emit('errorMessage', 'Database error');
             } else {
+              //Tell everyone that new message has arrive.
               sio.to(groupId).emit('newMessage', { groupId });
             }
           }
