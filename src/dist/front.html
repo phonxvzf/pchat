@@ -151,21 +151,26 @@
                         origin + '/api/login',
                         JSON.stringify({ login: "" + username, password: "" + password }),
                         function (obj) {
-                            displayname = obj.name;
-                            userId = obj.userId;
-                            $.post(
-                                origin + "/api/memberOf",
-                                JSON.stringify({ userId: "" + userId }),
-                                function (obj1) {
-                                    for (i = 0; i < obj1.length; i++) {
-                                        var newgroup = { gid: "" + obj1[i].groupId, gname: "" + obj1[i].name };
-                                        grouplist.push(newgroup);
-                                        AddGroup(newgroup.gid, newgroup.gname);
-                                    }
-                                },
-                                "json"
-                            )
-                            toMainPage();
+                            if (obj == "Unauthorized") {
+                                $('#LoginWarning').text("Not match. Try again.");
+                            }
+                            else {
+                                displayname = obj.name;
+                                userId = obj.userId;
+                                $.post(
+                                    origin + "/api/memberOf",
+                                    JSON.stringify({ userId: "" + userId }),
+                                    function (obj1) {
+                                        for (i = 0; i < obj1.length; i++) {
+                                            var newgroup = { gid: "" + obj1[i].groupId, gname: "" + obj1[i].name };
+                                            grouplist.push(newgroup);
+                                            AddGroup(newgroup.gid, newgroup.gname);
+                                        }
+                                    },
+                                    "json"
+                                )
+                                toMainPage();
+                            }
                         },
                         "json"
                     );
@@ -309,17 +314,17 @@
                 for (i = 0; i < grouplist.length; i++) {
                     AddGroup(grouplist[i]["gid"], grouplist[i]["gname"]);
                 }
-                $("#UNMain")[0].innerHTML = "User name: " + username;
-                $("#DNMain")[0].innerHTML = "Display name: " + displayname;
+                $("#UNMain").text("User name: " + username);
+                $("#DNMain").text("Display name: " + displayname);
                 main.style.display = "block";
                 home.style.display = "none";
                 group.style.display = "none";
             }
             function toHomePage() {
-                $("#UNLoginBox")[0].value = "";
-                $("#UNRegBox")[0].value = "";
-                $("#LoginWarning")[0].innerHTML = "";
-                $("#RegWarning")[0].innerHTML = "";
+                $("#UNLoginBox").val("");
+                $("#UNRegBox").val("");
+                $("#LoginWarning").text("");
+                $("#RegWarning").text("");
                 main.style.display = "none";
                 home.style.display = "block";
                 group.style.display = "none";
@@ -345,7 +350,7 @@
                     sio.emit('join', currentGroupId);
                 });
 
-                //Button for exit from chatroom. Or 'leave' group in socket.io. 
+                //Button for exit from chatroom. (Or 'leave' group in socket.io.) 
                 $("#exit").click((e) => {
                     //Tell everyone that we are leaving chatroom.
                     var msg = " has left chat.";
@@ -362,7 +367,7 @@
                     sio.emit("leave", currentGroupId);
                 });
 
-                sio.on("leaveACK",(e)=>{
+                sio.on("leaveACK", (e) => {
                     currentGroupId = "-";
                     toMainPage();
                 });
