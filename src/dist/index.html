@@ -99,13 +99,18 @@ h2 {
 
     window.onload = () => {
       const sio = io();
+      const joinedGroups = new Set();
 
-      // on form submit
+      // TODO: join all groups on login
       $('#joinForm').submit((e) => {
         e.preventDefault();
         const userId = $('#userId').val();
         const groupId = $('#groupId').val();
         if (userId == '' || groupId == '') return false;
+        if (currentGroup != null) {
+          // change group
+          messageIds[currentGroup] = null;
+        }
         sio.emit('join', groupId);
         clientUserId = userId;
         clientGroupId = groupId;
@@ -116,9 +121,26 @@ h2 {
         sio.emit('leave', clientGroupId);
       });
 
-      sio.on('leaveACK', () => {
-        $("#chatBoard").empty();
-        clientGroupId = null;
+      $('#chatForm').submit((e) => {
+        if (clientUserId == null || clientGroupId == null) return false;
+        if (clientUserId == '' || clientGroupId == '') return false;
+        e.preventDefault();
+        const msg = $('#chatMessage').val();
+        const id = window.crypto
+          .getRandomValues(new Uint32Array(1))[0]
+          .toString(16);
+        myMessageIds.add(id);
+        if (msg.length > 0) {
+          sio.emit('message', {
+            userId: clientUserId,
+            text: msg,
+            messageId: id,
+            groupId: clientGroupId,
+            senderName: 'phon'
+          });
+          $('#chatMessage').val('');
+        }
+        return false;
       });
 
       sio.on('errorMessage', (msg) => {
@@ -129,32 +151,16 @@ h2 {
         $('#currentGroup').text(msg.groupName);
         currentGroup = msg.groupId;
         if (messageIds[currentGroup] == null) {
+          // TODO: set messageIds[group] to null when focus other chat
+          $('#chatBoard').empty();
           messageIds[currentGroup] = new Set();
-          appendMessages(msg.messages);
-          msg.messages.forEach(m => messageIds[currentGroup].add(m.messageId));
+          const lastMessageId = appendMessages(msg.messages);
+          sio.emit('unreadMessageACK', {
+            userId: clientUserId,
+            groupId: msg.groupId,
+            messageId: lastMessageId,
+          });
         }
-
-        $('#chatForm').submit((e) => {
-          if (clientUserId == null || clientGroupId == null) return false;
-          if (clientUserId == '' || clientGroupId == '') return false;
-          e.preventDefault();
-          const msg = $('#chatMessage').val();
-          const id = window.crypto
-            .getRandomValues(new Uint32Array(1))[0]
-            .toString(16);
-          myMessageIds.add(id);
-          if (msg.length > 0) {
-            sio.emit('message', {
-              userId: clientUserId,
-              text: msg,
-              messageId: id,
-              groupId: clientGroupId,
-              senderName: 'phon'
-            });
-            $('#chatMessage').val('');
-          }
-          return false;
-        });
       });
 
       sio.on('leaveACK', (groupId) => {
@@ -164,25 +170,29 @@ h2 {
       sio.on('newMessage', (msg) => {
         sio.emit('getUnread', {
           userId: clientUserId,
-          groupId: clientGroupId,
-        })
+          groupId: msg.groupId,
+        });
       });
 
       sio.on('unreadMessage', (msg) => {
-        let lastMessageId = appendMessages(msg.unread);
-        if (lastMessageId != null) {
-          sio.emit('unreadMessageACK', {
-            userId: clientUserId,
-            groupId: clientGroupId,
-            messageId: lastMessageId,
-          });
+        if (currentGroup === msg.groupId) { // if the group is focused
+          let lastMessageId = appendMessages(msg.unread);
+          if (lastMessageId != null) {
+            sio.emit('unreadMessageACK', {
+              userId: clientUserId,
+              groupId: clientGroupId,
+              messageId: lastMessageId,
+            });
+          }
+        } else {
+          console.log('new message from group ' + msg.groupId);
+          console.log(msg.unread);
+          // notify, set unread number, etc.
         }
       });
 
       sio.on('reconnect', () => {
-        if (currentGroup != null) {
-          sio.emit('join', currentGroup);
-        }
+        joinedGroups.forEach(gid => sio.emit('join', gid));
       });
     };
   </script>
