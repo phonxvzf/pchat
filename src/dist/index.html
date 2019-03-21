@@ -346,6 +346,7 @@
                         origin + '/api/group',
                         JSON.stringify({ userId: "" + userId, groupName: "" + gname1 }),
                         function (obj) {
+                            sio.emit('join', obj.groupId);
                             gid1 = obj.groupId;
                             $("#groupName").val("");
                             var newgroup = { gid: "" + gid1, gname: "" + gname1 };
@@ -489,10 +490,10 @@
 
             sio.on('joinACK', (msg) => {
                 $('#currentGroup').text(msg.groupName);
-                //currentGroup = msg.groupId;
                 var groupNameStatusTag = $("#" + msg.groupId + "Status");
-                groupNameStatusTag.text("[online]");
+                groupNameStatusTag.text("[online] ");
                 groupNameStatusTag.attr("class", "onlineStatus");
+                joinedGroups.add(msg.groupId);
 
                 if (messageMap[msg.groupId] == null) {
                     messageMap[msg.groupId] = msg.messages;
@@ -500,6 +501,7 @@
             });
 
             sio.on('leaveACK', (groupId) => {
+                joinedGroups.delete(groupId);
                 messageIds[groupId] = null;
             });
 
