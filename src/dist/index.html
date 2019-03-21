@@ -221,7 +221,7 @@
             $('#chatroom').append(msg);
         }
         function updateGroupStatus(status, groupId) {
-            var groupNameStatusTag = $("#" + msg.groupId + "Status");
+            var groupNameStatusTag = $("#" + groupId + "Status");
             groupNameStatusTag.text("[" + status + "] ");
             groupNameStatusTag.attr("class", status + "Status");
         }
@@ -243,7 +243,7 @@
                 password = $('#PWLoginBox').val();
                 displayname = "-";
                 if ((username == "") || (password == "")) {
-                    $('#LoginWarning')[0].innerHTML = "Look like you doesn't enter username or password.";
+                    $('#LoginWarning')[0].innerHTML = "You didn't enter username or password.";
                 }
                 else {
                     $.post(
@@ -295,7 +295,7 @@
                 password = $('#PWRegBox').val();
                 displayname = $("#DNRegBox").val();
                 if ((username == "") || (password == "") || (displayname == "")) {
-                    $('#RegWarning')[0].innerHTML = "Look like you doesn't enter username or password.";
+                    $('#RegWarning')[0].innerHTML = "You didn't enter username or password.";
                 }
                 else {
                     $.post(
@@ -418,7 +418,7 @@
                 $('#chatroom').empty();
                 if (messageIds[currentGroup] == null) messageIds[currentGroup] = new Set();
                 const lastMessageId = appendMessages(messageMap[currentGroup]);
-                groupMessageLastList[msg.groupId] = lastMessageId;
+                groupMessageLastList[currentGroup] = lastMessageId;
                 sio.emit('unreadMessageACK', {
                     userId: userId,
                     groupId: currentGroup,
@@ -433,6 +433,7 @@
 
             $("#exit").click((e) => {
                 messageIds[currentGroup] = new Set();
+                updateGroupStatus("online",currentGroup);
                 currentGroup = null;
                 toMainPage();
             });
@@ -493,7 +494,7 @@
 
             sio.on('joinACK', (msg) => {
                 $('#currentGroup').text(msg.groupName);
-                updateGroupStatus("online", newgroup.gid);
+                updateGroupStatus("online", msg.groupId);
                 joinedGroups.add(msg.groupId);
 
                 if (messageMap[msg.groupId] == null) {
@@ -529,7 +530,7 @@
                 } else {
                     console.log('new message from group ' + msg.groupId);
                     console.log(msg.unread);
-                    updateGroupStatus("unread", newgroup.gid);
+                    updateGroupStatus("unread", msg.groupId);
                     // notify, set unread number, etc.
                 }
             });
