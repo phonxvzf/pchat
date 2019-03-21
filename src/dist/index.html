@@ -22,6 +22,10 @@
         color: green;
     }
 
+    .unreadStatus {
+        color: orange;
+    }
+
     .msgTagTime {
         color: darkblue
     }
@@ -99,7 +103,6 @@
         </nav>
 
         <p id="UNMain">User name:</p>
-        <!--<p id="DNMain">Display name:</p>-->
         <p><u>My Group</u></p>
 
         <table class="table" id="myTable" border="1">
@@ -172,7 +175,6 @@
 
     <script>
         var origin = window.location.origin;
-        //origin = "http://192.168.43.162:8080";
         var username, password, displayname, userId;
         var grouplist = [];
         var groupMessageLastList = {};
@@ -192,6 +194,12 @@
                 AddMessage(dateString, m.senderName, m.text, cl);
                 lastMessageId = m.messageId;
                 messageIds[currentGroup].add(m.messageId);
+                if (m.messageId === groupMessageLastList[currentGroup]) {
+                    const msg = $('<div/>');
+                    msg.append($('<span/>').attr('class', 'msgText')
+                        .text("<--------------This is where you left.-------------->"));
+                    $('#chatroom').append(msg);
+                }
             }
             const chatBoard = document.getElementById("chatroom");
             chatBoard.scrollTop = chatBoard.scrollHeight;
@@ -212,6 +220,11 @@
                 .text(message));
             $('#chatroom').append(msg);
         }
+        function updateGroupStatus(status, groupId) {
+            var groupNameStatusTag = $("#" + groupId + "Status");
+            groupNameStatusTag.text("[" + status + "] ");
+            groupNameStatusTag.attr("class", status + "Status");
+        }
         window.onload = () => {
             $.ajaxSetup({
                 contentType: "application/json; charset=utf-8"
@@ -230,7 +243,7 @@
                 password = $('#PWLoginBox').val();
                 displayname = "-";
                 if ((username == "") || (password == "")) {
-                    $('#LoginWarning')[0].innerHTML = "Look like you doesn't enter username or password.";
+                    $('#LoginWarning')[0].innerHTML = "You didn't enter username or password.";
                 }
                 else {
                     $.post(
@@ -252,10 +265,7 @@
                                             sio.emit("join", newgroup.gid);
                                             grouplist.push(newgroup);
                                             AddGroup(newgroup.gid, newgroup.gname);
-
-                                            var groupNameStatusTag = $("#" + newgroup.gid + "Status");
-                                            groupNameStatusTag.text("[offline]");
-                                            groupNameStatusTag.attr("class", "offlineStatus");
+                                            updateGroupStatus("offline", newgroup.gid);
                                         }
                                         for (i = 0; i < obj.lastRead.length; i++) {
                                             groupMessageLastList[obj.lastRead[i].groupId] = obj.lastRead[i].messageId;
@@ -285,7 +295,7 @@
                 password = $('#PWRegBox').val();
                 displayname = $("#DNRegBox").val();
                 if ((username == "") || (password == "") || (displayname == "")) {
-                    $('#RegWarning')[0].innerHTML = "Look like you doesn't enter username or password.";
+                    $('#RegWarning')[0].innerHTML = "You didn't enter username or password.";
                 }
                 else {
                     $.post(
@@ -317,6 +327,10 @@
                 userId = "";
                 username = "";
                 displayname = "";
+                $("#myTable")[0].innerHTML = "<col width='200'><col width='300'><col width='150'><tr><td>Group ID</td><td>Group name</td><td>Option</td></tr>";
+                joinedGroups.forEach(g=>{
+                    sio.emit("leave",{groupId:g});
+                })
                 toHomePage();
             });
             $("#joinForm").submit((e) => {
@@ -327,11 +341,13 @@
                         origin + '/api/join',
                         JSON.stringify({ userId: "" + userId, groupId: "" + gid1 }),
                         function (obj) {
+                            sio.emit('join', obj.groupId);
                             gname1 = obj.groupName;
                             $("#groupId")[0].value = "";
                             var newgroup = { gid: "" + gid1, gname: "" + gname1 };
                             grouplist.push(newgroup);
                             AddGroup(gid1, gname1);
+                            updateGroupStatus("offline", newgroup.gid);
                         },
                         "json"
                     );
@@ -352,6 +368,7 @@
                             var newgroup = { gid: "" + gid1, gname: "" + gname1 };
                             grouplist.push(newgroup);
                             AddGroup(gid1, gname1);
+                            updateGroupStatus("offline", newgroup.gid);
                         },
                         "json"
                     );
@@ -405,6 +422,7 @@
                 $('#chatroom').empty();
                 if (messageIds[currentGroup] == null) messageIds[currentGroup] = new Set();
                 const lastMessageId = appendMessages(messageMap[currentGroup]);
+                groupMessageLastList[currentGroup] = lastMessageId;
                 sio.emit('unreadMessageACK', {
                     userId: userId,
                     groupId: currentGroup,
@@ -419,6 +437,7 @@
 
             $("#exit").click((e) => {
                 messageIds[currentGroup] = new Set();
+                updateGroupStatus("online",currentGroup);
                 currentGroup = null;
                 toMainPage();
             });
@@ -452,17 +471,6 @@
             //End of Page Manage Script//
 
             // TODO: join all groups on login
-            $('#joinForm').submit((e) => {
-                e.preventDefault();
-                const joinGroupId = $('#groupId').val();
-                if (userId == '' || joinGroupId == '') return false;
-                if (currentGroup != null) {
-                    // change group
-                    messageIds[currentGroup] = null;
-                }
-                sio.emit('join', joinGroupId);
-                return false;
-            });
 
             $('#chatForm').submit((e) => {
                 e.preventDefault();
@@ -490,9 +498,7 @@
 
             sio.on('joinACK', (msg) => {
                 $('#currentGroup').text(msg.groupName);
-                var groupNameStatusTag = $("#" + msg.groupId + "Status");
-                groupNameStatusTag.text("[online] ");
-                groupNameStatusTag.attr("class", "onlineStatus");
+                updateGroupStatus("online", msg.groupId);
                 joinedGroups.add(msg.groupId);
 
                 if (messageMap[msg.groupId] == null) {
@@ -518,6 +524,7 @@
                     var lastMessageId = appendMessages(msg.unread);
                     console.log(msg.unread);
                     if (lastMessageId != null) {
+                        groupMessageLastList[msg.groupId] = lastMessageId;
                         sio.emit('unreadMessageACK', {
                             userId: userId,
                             groupId: currentGroup,
@@ -527,6 +534,7 @@
                 } else {
                     console.log('new message from group ' + msg.groupId);
                     console.log(msg.unread);
+                    updateGroupStatus("unread", msg.groupId);
                     // notify, set unread number, etc.
                 }
             });
