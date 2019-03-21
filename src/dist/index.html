@@ -327,6 +327,10 @@
                 userId = "";
                 username = "";
                 displayname = "";
+                $("#myTable")[0].innerHTML = "<col width='200'><col width='300'><col width='150'><tr><td>Group ID</td><td>Group name</td><td>Option</td></tr>";
+                joinedGroups.forEach(g=>{
+                    sio.emit("leave",{groupId:g});
+                })
                 toHomePage();
             });
             $("#joinForm").submit((e) => {
