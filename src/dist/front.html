@@ -13,6 +13,14 @@
             background-position: 0% 50%
         }
     }
+
+    .offlineStatus {
+        color: red;
+    }
+
+    .onlineStatus {
+        color: green;
+    }
 </style>
 <html>
 <header>
@@ -65,7 +73,7 @@
             background-size: 500% 500%;
             animation: gradientBackground 20s ease infinite;">
             <span class="navbar-brand mb-0 h1">pchat</span>
-            <span id="DNMain" class="navbar-text"style="color:white">Display name:</span>
+            <span id="DNMain" class="navbar-text" style="color:white">Display name:</span>
             <button class="btn btn-secondary" id="logout" style="float :right">Logout</button>
         </nav>
 
@@ -113,7 +121,7 @@
             background-size: 500% 500%;
             animation: gradientBackground 20s ease infinite;">
             <span class="navbar-brand mb-0 h1">pchat</span>
-            <span id="groupId" class="navbar-text" style="color:white">Group id:</span>
+            <span id="navbarGroupId" class="navbar-text" style="color:white">Group id:</span>
             <button class="btn btn-danger" id="exit" style="float :right">Exit</button>
         </nav>
 
@@ -143,19 +151,41 @@
     </div>
 
     <script>
+        var origin = window.location.origin;
+        origin = "http://192.168.43.162:8080";
+        var username, password, displayname, userId;
+        var grouplist = [];
+
+        var currentGroup = null;
+        const myMessageIds = new Set();
+        const messageIds = {};
+        function appendMessages(messages) {
+            let lastMessageId = null;
+            for (let i = 0; i < messages.length; ++i) {
+                const m = messages[i];
+                if (messageIds[currentGroup].has(m.messageId)) continue;
+                const cl = myMessageIds.has(m.messageId) ? 'msgOwn' : 'msgOther';
+                const datetime = new Date(m.time);
+                const dateString = datetime.toDateString() + ' ' + datetime.toTimeString().substr(0, 8);
+                $('#chatRoom').append($('<div/>')
+                    .attr('class', cl)
+                    .text(dateString + ' [' + m.senderName + ']: ' + m.text));
+                lastMessageId = m.messageId;
+                messageIds[currentGroup].add(m.messageId);
+            }
+            return lastMessageId;
+        }
         window.onload = () => {
             $.ajaxSetup({
                 contentType: "application/json; charset=utf-8"
             });
-            var origin = window.location.origin;
-            origin = "http://192.168.43.162:8080";
-            var username, password, displayname, userId;
             var main = $("#main")[0];
             var home = $("#home")[0];
             var group = $("#group")[0];
             var room = $("#chatroom")[0];
-            var grouplist = [];
-            var currentGroupId;
+            //Socket io
+            const sio = io(origin);
+            const joinedGroups = new Set();
 
             //Home Page Script//
             $("#loginForm").submit((e) => {
@@ -183,12 +213,23 @@
                                     function (obj1) {
                                         for (i = 0; i < obj1.length; i++) {
                                             var newgroup = { gid: "" + obj1[i].groupId, gname: "" + obj1[i].name };
+                                            sio.emit("join", newgroup.gid);
                                             grouplist.push(newgroup);
                                             AddGroup(newgroup.gid, newgroup.gname);
+                                            var groupNameStatusTag = $("#" + newgroup.gid + "Status");
+                                            groupNameStatusTag.text("[offline]");
+                                            groupNameStatusTag.attr("class", "offlineStatus");
                                         }
                                     },
                                     "json"
                                 )
+                                var table = $("#myTable")[0];
+                                while (table.rows.length > 1) {
+                                    table.deleteRow(1);
+                                }
+                                for (i = 0; i < grouplist.length; i++) {
+                                    AddGroup(grouplist[i]["gid"], grouplist[i]["gname"]);
+                                }
                                 toMainPage();
                             }
                         },
@@ -283,7 +324,7 @@
                 var cell2 = row.insertCell(1);
                 var cell3 = row.insertCell(2);
                 cell1.innerHTML = newgid;
-                cell2.innerHTML = newgname;
+                cell2.innerHTML = "<span id=" + newgid + "Status></span>" + newgname;
                 cell3.innerHTML = "<button id='viewGroup' value=" + newgid + ">View</button>" +
                     "<button id='leaveGroup' value=" + newgid + ">Leave</button>";
             }
@@ -298,23 +339,25 @@
                     }
                 }
             }
-
-            /*function ViewGroup(btn) { //join socket.io
-                $("#test")[0].innerHTML = "Go to Group " + btn.value;
-                toGroupPage(btn.value);
-            }*/
-
-            $("#leaveGroup").click((e) => {
-                e.preventDefault();
-                var me = $(this);
+            $('body').on('click', '#leaveGroup', function () {
+                // code here
+                var me = $(this)[0];
+                console.log("leaving " + me.value);
+                sio.emit("leave", { groupId: me.value });
                 $.post(
                     origin + "/api/leave",
-                    JSON.stringify({ userId: userId, groupId: this.val() }),
+                    JSON.stringify({ userId: userId, groupId: me.value }),
                     function (obj) {
                         LeaveGroup(me);//delete this group from grouplist in main page.
                     }
                 );
-                return false;
+            });
+
+            $('body').on('click', '#viewGroup', function () {
+                // code here
+                var me = $(this)[0];
+                console.log("viewing " + me.value);
+                toGroupPage(me.value);
             });
             //End of Main Page Script//
 
@@ -327,17 +370,15 @@
                 room.innerHTML = temp + "<p>" + timeTag + authorTag + message + "</p>";
                 room.scrollTop = room.scrollHeight;
             }
+
+            $("#exit").click((e) => {
+                currentGroup = null;
+                toMainPage();
+            });
             //End of Group Page Script//
 
             //Page Manage Script//
             function toMainPage() {
-                var table = $("#myTable")[0];
-                while (table.rows.length > 1) {
-                    table.deleteRow(1);
-                }
-                for (i = 0; i < grouplist.length; i++) {
-                    AddGroup(grouplist[i]["gid"], grouplist[i]["gname"]);
-                }
                 $("#UNMain").text("User name: " + username);
                 $("#DNMain").text("Display name: " + displayname);
                 main.style.display = "block";
@@ -354,116 +395,101 @@
                 group.style.display = "none";
             }
             function toGroupPage(gid) {
-                $("#groupId").val(gid);
+                currentGroup = gid;
+                $("#navbarGroupId").text("Group id: " + gid);
                 main.style.display = "none";
                 home.style.display = "none";
                 group.style.display = "block";
             }
             //End of Page Manage Script//
 
-            //Socket io
-            const sio = io(origin);
-            let lastMessageId = '';
-            sio.on('connect', () => {
-                $("#viewGroup").click((e) => {
-                    var me = $(this);
-                    currentGroupId = this.val();
-                    if (currentGroupId == '') return false;
+            // TODO: join all groups on login
+            $('#joinForm').submit((e) => {
+                e.preventDefault();
+                const joinGroupId = $('#groupId').val();
+                if (userId == '' || joinGroupId == '') return false;
+                if (currentGroup != null) {
+                    // change group
+                    messageIds[currentGroup] = null;
+                }
+                sio.emit('join', joinGroupId);
+                return false;
+            });
 
-                    //Tell socket.io that we want to join this chatroom.
-                    sio.emit('join', currentGroupId);
-                });
-
-                //Button for exit from chatroom. (Or 'leave' group in socket.io.) 
-                $("#exit").click((e) => {
-                    //Tell everyone that we are leaving chatroom.
-                    var msg = " has left chat.";
-                    const id = window.crypto
-                        .getRandomValues(new Uint32Array(1))[0]
-                        .toString(16);
-                    lastMessageId = id;
+            $('#chatForm').submit((e) => {
+                e.preventDefault();
+                const msg = $('#chatMessage').val();
+                const id = window.crypto
+                    .getRandomValues(new Uint32Array(1))[0]
+                    .toString(16);
+                //myMessageIds.add(id);
+                if (msg.length > 0) {
                     sio.emit('message', {
-                        text: msg,
-                        messageId: id,
-                        groupId: currentGroupId,
-                        senderName: displayname
-                    });
-                    sio.emit("leave", currentGroupId);
-                });
-
-                sio.on("leaveACK", (e) => {
-                    currentGroupId = "-";
-                    toMainPage();
-                });
-                sio.on('errorMessage', (msg) => {
-                    $('#errorMessage').text(msg);
-                });
-
-                //Tell that we join chat room succesfully.
-                sio.on('joinACK', (msg) => {
-                    $('#currentGroup').text(msg.groupName);
-                    toGroupPage(groupId);
-                    console.log(msg.messages);
-                    var msg = " has joined chat.";
-                    const id = window.crypto
-                        .getRandomValues(new Uint32Array(1))[0]
-                        .toString(16);
-                    lastMessageId = id;
-                    sio.emit('message', {
-                        text: msg,
-                        messageId: id,
-                        groupId: currentGroupId,
-                        senderName: displayname
-                    });
-                });
-
-                $('#chatForm').submit((e) => {
-                    if (currentGroupId == '') return false;
-                    e.preventDefault();
-                    const msg = $('#chatMessage').val();
-                    const id = window.crypto
-                        .getRandomValues(new Uint32Array(1))[0]
-                        .toString(16);
-                    lastMessageId = id;
-                    if (msg.length > 0) {
-                        sio.emit('message', {
-                            text: msg,
-                            messageId: id,
-                            groupId: currentGroupId,
-                            senderName: displayname
-                        });
-                        $('#chatMessage').val('');
-                    }
-                    return false;
-                });
-
-                //Tell that we have new message, pls respond.
-                sio.on('newMessage', (msg) => {
-                    sio.emit('getUnread', {
                         userId: userId,
-                        groupId: currentGroupId,
-                    })
-                });
-
-                //Tell what message that we miss.
-                sio.on('unreadMessage', (msg) => {
-                    let latestMessageId = null;
-                    for (let i = 0; i < msg.unread.length; ++i) {
-                        const m = msg.unread[i];
-                        const cl = (m.messageId === lastMessageId) ? 'msgOwn' : 'msgOther';
-                        const datetime = new Date(m.time);
-                        const dateString = datetime.toDateString() + ' ' + datetime.toTimeString().substr(0, 8);
-                        latestMessageId = m.messageId;
-                        AddMessage(dateString, m.senderName, m.text);
-                    }
-
-                    //Tell DB that we have read unread message.
-                    sio.emit('unreadMessageACK', {
-                        userId: user,
-                        groupId: currentGroupId,
-                        messageId: latestMessageId,
+                        text: msg,
+                        messageId: id,
+                        groupId: currentGroup,
+                        senderName: displayname
                     });
+                    $('#chatMessage').val('');
+                }
+                return false;
+            });
+
+            sio.on('errorMessage', (msg) => {
+                $('#errorMessage').text(msg);
+            });
+
+            sio.on('joinACK', (msg) => {
+                $('#currentGroup').text(msg.groupName);
+                //currentGroup = msg.groupId;
+                var groupNameStatusTag = $("#" + msg.groupId + "Status");
+                groupNameStatusTag.text("[online]");
+                groupNameStatusTag.attr("class", "onlineStatus");
+                if (messageIds[currentGroup] == null) {
+                    // TODO: set messageIds[group] to null when focus other chat
+                    $('#chatBoard').empty();
+                    messageIds[currentGroup] = new Set();
+                    //const lastMessageId = appendMessages(msg.messages);
+                    /*sio.emit('unreadMessageACK', {
+                        userId: userId,
+                        groupId: msg.groupId,
+                        messageId: lastMessageId,
+                    });*/
+                }
+            });
+
+            sio.on('leaveACK', (groupId) => {
+                messageIds[groupId] = null;
+            });
+
+            sio.on('newMessage', (msg) => {
+                sio.emit('getUnread', {
+                    userId: userId,
+                    groupId: msg.groupId,
                 });
+            });
+
+            sio.on('unreadMessage', (msg) => {
+                if (currentGroup === msg.groupId) { // if the group is focused
+                    //let lastMessageId = appendMessages(msg.unread);
+                    console.log(msg.unread);
+                    if (lastMessageId != null) {
+                        sio.emit('unreadMessageACK', {
+                            userId: userId,
+                            groupId: currentGroupId,
+                            messageId: lastMessageId,
+                        });
+                    }
+                } else {
+                    console.log('new message from group ' + msg.groupId);
+                    console.log(msg.unread);
+                    // notify, set unread number, etc.
+                }
+            });
+
+            sio.on('reconnect', () => {
+                joinedGroups.forEach(gid => sio.emit('join', gid));
             });
         };
     </script>
