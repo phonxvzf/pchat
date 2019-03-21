@@ -87,6 +87,7 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
                   name: req.body['name'],
                   password: encryptedPassword,
                   lastRead: [],
+                  messageIds: [],
                 };
                 mongodb.collection('user')
                   .insertOne(
@@ -134,7 +135,13 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
           } else {
             bcrypt.compare(password, result.password, (_, match) => {
               if (match) {
-                res.send({ userId: result._id, name: result.name, groups: result.groups, lastRead: result.lastRead });
+                res.send({
+                  userId: result._id,
+                  name: result.name,
+                  groups: result.groups,
+                  lastRead: result.lastRead,
+                  messageIds: result.messageIds,
+                });
               } else {
                 res.status(401);
                 res.send('Unauthorized');
@@ -317,7 +324,7 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
               }
             }
           }
-        )
+        );
       }
     });
 
@@ -401,13 +408,12 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
     });
 
     socket.on('message', (msg) => {
-      const { messageId, groupId, senderName, text } = msg;
-      if (messageId == null || groupId == null || senderName == null || text == null) {
-        socket.emit('errorMessage', 'Provide { messageId, groupId, senderName, text }');
+      const { userId, messageId, groupId, senderName, text } = msg;
+      if (userId == null || messageId == null || groupId == null || senderName == null || text == null) {
+        socket.emit('errorMessage', 'Provide { userId, messageId, groupId, senderName, text }');
       } else {
         const message = {
           messageId,
-          groupId,
           senderName,
           text,
           time: new Date(),
@@ -420,8 +426,18 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
               console.log(err);
               socket.emit('errorMessage', 'Database error');
             } else {
-              //Tell everyone that new message has arrive.
-              sio.to(groupId).emit('newMessage', { groupId });
+              mongodb.collection('user').updateOne(
+                { _id: new mongo.ObjectID(userId) },
+                { '$addToSet': { messageIds: messageId } },
+                (err, _) => {
+                  if (err) {
+                    console.log(err);
+                    socket.emit('errorMessage', 'Database error');
+                  } else {
+                    sio.to(groupId).emit('newMessage', { groupId });
+                  }
+                }
+              )
             }
           }
         )
