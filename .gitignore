@@ -86,3 +86,5 @@ typings/
 
 # Project related
 database/
+.pyc
+__pycache__

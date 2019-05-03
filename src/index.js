@@ -18,6 +18,7 @@ const MONGO_URL = `mongodb://${MONGO_HOST}:27017/pchat`;
 var mongodb = null;
 
 const jsonParser = bodyParser.json();
+const formParser = bodyParser.urlencoded({ extended: false });
 
 // Initialize DB
 mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
@@ -31,6 +32,7 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
   }));
 
   app.use(jsonParser);
+  app.use(formParser);
 
   app.get('/', (_, res) => {
     res.redirect('/pchat');
@@ -155,6 +157,157 @@ mongoClient.connect(MONGO_URL, { useNewUrlParser: true }, (err, db) => {
         }
       });
     }
+  });
+
+  app.get('/allrooms', (_, res) => {
+    mongodb.collection('rooms').find().toArray((err, result) => {
+      if (err) {
+        res.status(500).json('Database error');
+      } else {
+        res.send(result.map(x => x.room_name));
+      }
+    });
+  });
+
+  app.post('/allrooms', (req, res) => {
+    mongodb.collection('rooms').updateOne(
+      {
+        room_name: req.body.id,
+      },
+      {
+        $set: {
+          room_name: req.body.id,
+        },
+        $setOnInsert: {
+          members: [],
+        },
+      },
+      {
+        upsert: true,
+      },
+      (_, result) => {
+        if (result.upsertedCount === 1) {
+          res.status(201).send({ id: req.body.id });
+        } else {
+          res.status(404).json(`${req.body.id} already exists`);
+        }
+      }
+    );
+  });
+
+  app.put('/allrooms', (req, res) => {
+    mongodb.collection('rooms').updateOne(
+      {
+        room_name: req.body.id,
+      },
+      {
+        $set: {
+          room_name: req.body.id,
+        },
+        $setOnInsert: {
+          members: [],
+        },
+      },
+      {
+        upsert: true,
+      },
+      (err, result) => {
+        if (err) {
+          res.status(500);
+        } else {
+          if (result.upsertedCount === 1) {
+            res.status(201).send({ id: req.body.id });
+          } else {
+            res.status(200).send({ id: req.body.id });
+          }
+        }
+      }
+    );
+  });
+
+  app.delete('/allrooms', (req, res) => {
+    mongodb.collection('rooms').deleteOne(
+      {
+        room_name: req.body.id,
+      },
+      (err, result) => {
+        if (err) {
+          res.status(404).json('Room id not found');
+        } else {
+          if (result.deletedCount === 0) {
+            res.status(404).json('Room id not found');
+          } else {
+            res.status(200).json(`${req.body.id} is deleted`);
+          }
+        }
+      },
+    );
+  });
+
+  app.get('/room/:id', (req, res) => {
+    mongodb.collection('rooms').findOne(
+      {
+        room_name: req.params.id,
+      },
+      (_, result) => {
+        if (result == null) {
+          res.status(404).json('Room does not exist');
+        } else {
+          res.status(200).send(result.members);
+        }
+      }
+    );
+  });
+
+  function joinRoom(req, res) {
+    mongodb.collection('rooms').updateOne(
+      {
+        room_name: req.params.id,
+      },
+      {
+        $addToSet: {
+          members: req.body.user,
+        }
+      },
+      (_, result) => {
+        if (result.modifiedCount === 0) {
+          res.status(200).json({});
+        } else {
+          res.status(201).json({});
+        }
+      },
+    );
+  }
+
+  app.post('/room/:id', joinRoom);
+  app.put('/room/:id', joinRoom);
+
+  app.delete('/room/:id', (req, res) => {
+    mongodb.collection('rooms').updateOne(
+      {
+        room_name: req.params.id,
+      },
+      {
+        $pull: {
+          members: req.body.user,
+        }
+      },
+      (_, result) => {
+        if (result.modifiedCount === 0) {
+          res.status(404).json('User id not found');
+        } else {
+          res.status(200).json(`${req.body.user} leaves the room`);
+        }
+      },
+    );
+  });
+
+  app.get('/users', (_, res) => {
+    mongodb.collection('rooms').find().toArray(
+      (_, result) => {
+        res.status(200).send(result.map(x => x.members).flat());
+      }
+    );
   });
 
   app.post('/api/group', requireAuth, (req, res) => {
